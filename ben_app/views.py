@@ -3,7 +3,6 @@ from django.contrib import messages
 
 # Create your views here.
 def home(request):
-	
 	if request.method=='POST':
 		name=request.POST['name']
 		email=request.POST['email']

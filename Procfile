@@ -1,0 +1,1 @@
+web: gunicorn Ben.wsgi:application --log-file - --log-level debug
