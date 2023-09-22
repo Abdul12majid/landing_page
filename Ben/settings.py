@@ -56,7 +56,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'Ben.urls'
-CSRF_TRUSTED_ORIGINS = ['landingpage-production-4115.up.railway.app']
+CSRF_TRUSTED_ORIGINS = ['https://landingpage-production-4115.up.railway.app/']
 
 TEMPLATES = [
     {
