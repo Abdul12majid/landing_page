@@ -1,0 +1,80 @@
+/* theme19_poweredBy */
+.poweredBy, .theme49_poweredBy { width:auto !important; }
+.poweredBy .poweredbywrapper img { padding-right:4px; }
+.poweredBy .poweredbywrapper span { display:inline-block !important; }
+.theme50_poweredBy .poweredbywrapper { color:#000 !important; }
+
+
+/*FILTERS*/
+.filterSection { display:inline-flex; justify-content:center }
+.widget_filter_poweredBy { position:relative !important; top:0 !important; left:0 !important }
+.filter4 .widget_filter_poweredBy, .filter3 .widget_filter_poweredBy, .filter1 .widget_filter_poweredBy { position:relative !important; top:0 !important; left:0 !important }
+.filter_poweredBy_a { display:inline-block }
+.filter4 .filter_poweredBy_a, .filter3 .filter_poweredBy_a, .filter1 .filter_poweredBy_a { border:0 !important }
+.filter2 .filter_poweredBy_a { border-radius:5px }
+.poweredby_with_filters { margin-right:10px }
+
+.scrollbar-thumb { background:#4179ff !important }
+.taggContentHolder .ugc-module .product-item::-webkit-scrollbar-thumb, ::-webkit-scrollbar-thumb { background-color:#4179ff;
+    border-radius:3px; -moz-border-radius:3px; -webkit-border-radius:3px }
+/* airbnb icon */
+@font-face { font-family:'airbnb'; src:url('fonts/airbnb.eot?s7nv64'); src:url('fonts/airbnb.eot?s7nv64#iefix') format('embedded-opentype'), url('fonts/airbnb.ttf?s7nv64') format('truetype'), url('fonts/airbnb.woff?s7nv64') format('woff'),     url('fonts/airbnb.svg?s7nv64#airbnb') format('svg'); font-weight:normal; font-style:normal; font-display:block }
+.fa-airbnb:before { content:"\e900" }
+.fa-airbnb { font-family:airbnb; speak:none; font-style:normal; font-weight:400; font-variant:normal; text-transform:none; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale }
+
+/* giphy icon */
+@font-face { font-family:'giphy'; src:url('fonts/giphy.eot'); src:url('fonts/giphy.eot') format('embedded-opentype'), url('fonts/giphy.ttf') format('truetype'), url('fonts/giphy.woff') format('woff'), url('fonts/giphy.svg') format('svg'); font-weight:normal; font-style:normal; font-display:block }
+.fa-giphy:before { content:"\e912" }
+.fa-giphy { font-family:'giphy'; speak:none; font-style:normal; font-weight:normal; font-variant:normal; text-transform:none; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale }
+
+/* THEME 20 */
+.themeNewsCard .flatCard.onlyTextCard .postedTxt { text-align:center !important }
+.modernCard .postedTxt, .modernCard .postedTxt .getContent { text-align:center }
+.modernCard.flatCard .post { border-radius:6px }
+.modernCard .postContent:hover .shareWrapper { top:74px; display:flex }
+.modernCard .postContent:hover .shareWrapper a { margin-right:8px }
+.modernCard .shareWrapper:hover a:nth-child(2),.modernCard .shareWrapper:hover a:nth-child(3) { transform:translate3d(0,0,0); -webkit-transform:translate3d(0,0,0) }
+
+/* THEME 5 */
+.classicCard .post { border-radius:6px }
+.classicCard .postedTxt, .classicCard .postedTxt .getContent  { text-align:center }
+
+/* THEME 19 */
+.newsCard .postedTxt, .newsCard .postedTxt .getContent  { text-align:center }
+.newsCard .contentNewsCardStyle .authorDetails img { width:54px; height:54px; position:relative; top:-24px }
+.newsCard.flatCard .contentNewsCardStyle h4 .postNetwork { position:absolute; top:6px; right:12px }
+.newsCard.flatCard .contentNewsCardStyle h4 .postNetwork i { color:#fff!important }
+
+/* THEME 3 */
+.classicPhoto .postContent div.image { height:260px; overflow:hidden }
+.classicPhoto .postContent .image img.img-responsive { min-height:100% }
+
+/* THEME 4 */
+.squarePhoto .postContentCard { background-color:rgba(253, 30, 190, .49) !important }
+.squarePhoto .postContent .postNetwork { top:14px; right:14px !important }
+
+/* THEME 16 */
+.horizontalSlider.flatCard h4 .authorDetails { top:10px }
+.horizontalSlider.flatCard .postNetwork { left:0; right:0; text-align:center }
+
+/* THEME 47 */
+.horizontalColumns .flatCard.onlyTextCard .postedTxt { margin-bottom:20px !important }
+.horizontalColumns .flatCard.onlyTextCard .post { padding:0 !important }
+.horizontalColumns .flatCard.onlyTextCard h4 .authorDetails { position:relative !important; top:0 !important }
+.horizontalColumn .columnStyle .postNetwork { position:absolute; left:0; right:0; top:12px; text-align:center }
+.horizontalColumn .columnStyle .postNetwork i { color:#fff!important; text-shadow:0 0 14px rgba(0,0,0,.4) }
+.horizontalColumn.onlyTextCard .postContentCard { padding-top:60px !important }
+.theme16 .horizontalColumn.onlyTextCard .postNetwork { position:absolute !important; margin:0 !important; padding:0 !important; left:0 !important; right:0 !important }
+.horizontalColumn.onlyTextCard .authorDetails { margin-bottom:12px }
+
+/* THEME 49 */
+.widgetTheme.onlyPhotoPost .postContent { position:relative }
+.widgetTheme.onlyPhotoPost .postNetwork { margin:24px 24px 0 0 }
+.widgetTheme.onlyPhotoPost .postContent h4 { position:absolute; top:0; z-index:9; width:100%; color:#fff; background:linear-gradient(180deg, rgba(2,0,36,0.6) 0%, rgba(255,255,255,0) 100%) }
+
+.theme49_poweredByMain .loadmorebtn49 { padding-bottom:36px }
+
+/* THEME 50 */
+.galleryPhoto.flatCard .postContentCard { margin:50px 0 0 0 !important; display: flex; flex-direction:column; justify-content: center }
+.galleryPhoto.flatCard .postContentCard { height:0 !important; overflow:hidden; bottom:0; top:inherit !important }
+.galleryPhoto.flatCard .post:hover .postContent .postContentCard { height:calc(100% - 52px) !important }

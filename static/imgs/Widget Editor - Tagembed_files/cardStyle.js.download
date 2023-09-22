@@ -1,0 +1,178 @@
+$(function () {
+    $('#ThemeRuleCardColor').minicolors({
+        theme: 'bootstrap',
+        change: function (value, opacity) {
+            $("#wallCardStylePreview .te_postItem.te_item .te_post").css("background-color", value);
+        }
+    });
+
+    $('#ThemeRuleFontColor').minicolors({
+        theme: 'bootstrap',
+        change: function (value, opacity) {
+            $("#wallCardStylePreview .te_postItem.te_item .te_setFont ").css("color", value);
+        }
+    });
+
+    // $('#wallindexfontSize').({
+    //     theme: 'bootstrap',
+    //     change: function (value, opacity) {
+    //         $("#wallCardStylePreview .te_postItem.te_item .font").css("font-size", value);
+    //     }
+    // });
+
+    $('#ThemeRuleAuthorColor').minicolors({
+        theme: 'bootstrap',
+        change: function (value, opacity) {
+            $("#wallCardStylePreview .te_postItem.te_item .te_postAuthorName ").css("color", value);
+            $("#wallCardStylePreview .te_postItem.te_item .te_authrHandleTime .te_authrHandle ").css("color", value);
+            $("#wallCardStylePreview .te_postItem.te_item .te_timePost").css("color", value);
+        }
+    });
+
+    $('#ThemeRuleIconColor').minicolors({
+        theme: 'bootstrap',
+        change: function (value, opacity) {
+            if ($('#wallCardStylePreview').hasClass('te_themeStart5')) {
+                var value = value + ' !important';
+                $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork").attr("style", 'color:' + value);
+                $(".te_socialPostAction").css("color", value);
+            } else if ($('#wallCardStylePreview').hasClass('te_themeStart46')) {
+                var value = value + ' !important';
+                $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork").attr("style", 'border-bottom-color:' + value);
+            } else {
+                $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork i.fa").css("color", value);
+                $(".te_socialPostAction").css("color", value);
+            }
+
+        }
+    });
+});
+function changeIconType(elem) {
+    if ($(elem).val() == '1') {
+        $('#iconColorOption').show();
+        if ($('#wallCardStylePreview').hasClass('te_themeStart5')) {
+            var value = $('#ThemeRuleIconColor').val() + ' !important';
+            $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork").attr("style", 'color:' + value);
+            $(".te_socialPostAction").css("color", value);
+        } else if ($('#wallCardStylePreview').hasClass('te_themeStart46')) {
+            var value = $('#ThemeRuleIconColor').val() + ' !important';
+            $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork").attr("style", 'border-bottom-color:' + value);
+        } else if ($('#wallCardStylePreview').hasClass('te_themeStart49')) {
+            var value = $('#ThemeRuleIconColor').val() + ' !important';
+            $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork .fa-twitter, #wallCardStylePreview .te_postItem.te_item .te_postNetwork svg").attr("style", 'color:' + value);
+            $(".te_socialPostAction").css("color", value);
+        } else {
+            $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork:after").css("border-color", $('#ThemeRuleIconColor').val());
+            $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork i, #wallCardStylePreview .te_postItem.te_item .te_postNetwork svg").css("color", $('#ThemeRuleIconColor').val());
+            $(".te_socialPostAction").css("color", $('#ThemeRuleIconColor').val());
+        }
+    } else {
+
+        //console.log("here");
+        $('#iconColorOption').hide();
+        if ($('#wallCardStylePreview').hasClass('te_themeStart5')) {
+            var color = $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork").attr('data-network-color');
+            $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork").css("color", color);
+            $(".te_socialPostAction").css("color", color);
+
+        } else if ($('#wallCardStylePreview').hasClass('te_themeStart5')) {
+            $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork").css("border-bottom-color", '');
+        } else if ($('#wallCardStylePreview').hasClass('te_themeStart49')) {
+            $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork .fa-twitter, #wallCardStylePreview .te_postItem.te_item .te_postNetwork svg").css("color", '#00aced');
+            $(".te_socialPostAction").css("color", '#00aced');
+        } else {
+            var color = $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork").attr('data-network-color');
+            $(".te_socialPostAction").css("color", color);
+
+            $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork i, #wallCardStylePreview .te_postItem.te_item .te_postNetwork svg").css("color", color);
+            $("#wallCardStylePreview .te_postItem.te_item .te_postNetwork:after").css("border-color", '');
+        }
+
+    }
+}
+function ctaChange(elem, identifier, permission) {
+    if (permission) {
+        if (elem.checked) {
+            $('#' + identifier + 'CtaTab').show();
+            $("#wallCardStylePreview .te_postItem.te_item .te_cardPostCTA ").fadeIn('slow');
+        } else {
+            $('#' + identifier + 'CtaTab').hide();
+            $("#wallCardStylePreview .te_postItem.te_item .te_cardPostCTA ").fadeOut('slow');
+        }
+    } else {
+        if (elem.checked) {
+            $(elem).prop('checked', false);
+            $('#personalizeOption .modal-title').html('Permission Error');
+            $('#personalizeOption .backBtn').toggle();
+            $('#ctaErrorBlock').toggle();
+            $('#personalizeBlock').toggle();
+
+        } else {
+            $(elem).prop('checked', true);
+            $('#personalizeOption .modal-title').html('Permission Error');
+            $('#personalizeOption .backBtn').toggle();
+            $('#ctaErrorBlock').toggle();
+            $('#personalizeBlock').toggle();
+
+        }
+    }
+
+}
+function authorChange(elem, identifier) {
+    if (elem.checked) {
+        $("#wallCardStylePreview .te_postItem.te_item .te_authorInfo .te_postAuthorImage").fadeIn('slow');
+        $("#wallCardStylePreview .te_postItem.te_item .te_authorInfo .te_postAuthorName").fadeIn('slow');
+        $("#wallCardStylePreview .te_postItem.te_item .te_authorInfo .te_authrHandle").fadeIn('slow');
+        $("#wallCardStylePreview .te_postItem.te_item .te_authorInfo .te_sepratedot").fadeIn('slow');
+    } else {
+        $("#wallCardStylePreview .te_postItem.te_item .te_authorInfo .te_postAuthorImage").fadeOut('slow');
+        $("#wallCardStylePreview .te_postItem.te_item .te_authorInfo .te_postAuthorName").fadeOut('slow');
+        $("#wallCardStylePreview .te_postItem.te_item .te_authorInfo .te_authrHandle").fadeOut('slow');
+        $("#wallCardStylePreview .te_postItem.te_item .te_authorInfo .te_sepratedot").fadeOut('slow');
+
+    }
+
+}
+function hideContent(elem, identifier) {
+    if (elem.checked) {
+        $("#wallCardStylePreview .te_postItem.te_item .te_postedText").fadeOut('slow');
+
+    } else {
+        $("#wallCardStylePreview .te_postItem.te_item .te_postedText").fadeIn('slow');
+
+    }
+}
+function timeChange(elem) {
+    if (elem.checked) {
+        $("#wallCardStylePreview .te_postItem.te_item .te_timePost ").fadeIn('slow');
+        $("#wallCardStylePreview .te_postItem.te_item .te_sepratedot ").fadeIn('slow');
+    } else {
+        $("#wallCardStylePreview .te_postItem.te_item .te_timePost ").fadeOut('slow');
+        $("#wallCardStylePreview .te_postItem.te_item .te_sepratedot ").fadeOut('slow');
+    }
+
+}
+function changeMinimumPost(elem, theme) {
+    if (parseInt(theme) == 50) {
+        if (parseInt($(elem).val()) == 5) {
+            $('#wallnumberOfPosts').attr('min', 5);
+            if (parseInt($('#wallnumberOfPosts').val()) < 5) {
+                $('#wallnumberOfPosts').val(5);
+            }
+        } else {
+            $('#wallnumberOfPosts').attr('min', 4);
+        }
+    }
+}
+function postShareChange(elem) {
+    if (elem.checked)
+        $("#wallCardStylePreview .te_postItem.te_item .te_shareOptions ").fadeIn('slow');
+    else
+        $("#wallCardStylePreview .te_postItem.te_item .te_shareOptions ").fadeOut('slow');
+}
+function postsocialAction(elem) {
+    if (elem.checked)
+        $("#wallCardStylePreview .te_postItem.te_item .te_socialPostAction ").fadeIn('slow');
+    else
+        $("#wallCardStylePreview .te_postItem.te_item .te_socialPostAction ").fadeOut('slow');
+}

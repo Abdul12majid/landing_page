@@ -1,0 +1,2724 @@
+$.fn.isInViewport = function () {
+    let elementTop = $(this).offset().top;
+    let elementBottom = elementTop + $(this).outerHeight();
+    let viewportTop = $(window).scrollTop();
+    let viewportBottom = viewportTop + $(window).height();
+    return elementBottom > viewportTop && elementTop < viewportBottom;
+};
+void function $getLines($) {
+    function countLines($element, maxLines) {
+        var lines = 0;
+        var greatestOffset = void 0;
+        var extraLines = 0;
+        $element.find('character').each(function () {
+            if (lines > maxLines) {
+                extraLines = 1;
+                $(this).remove();
+            }
+            if (!greatestOffset || this.offsetTop > greatestOffset) {
+                greatestOffset = this.offsetTop;
+                ++lines;
+            }
+        });
+        $(".taggContentHolder .setFont").each(function () {
+            var htmls = $(this).html();
+            var res = htmls.replace(/<character>/g, '');
+            var res2 = res.replace(/<\/character>/g, '');
+            $(this).html(res2);
+            if (extraLines == 1) {
+                $(this).find('p').append('<span>...</span>');
+            }
+        });
+        return lines;
+    }
+    $.fn.getLines = function $getLines(maxLines) {
+        var lines = 0;
+        var clean = this;
+        var dirty = this.clone();
+        (function wrapCharacters(fragment) {
+            var parent = fragment;
+            $(fragment).contents().each(function () {
+                if (this.nodeType === Node.ELEMENT_NODE) {
+                    wrapCharacters(this);
+                } else if (this.nodeType === Node.TEXT_NODE) {
+                    void function replaceNode(text) {
+                        var characters = document.createDocumentFragment();
+                        text.nodeValue.replace(/[\s\S]/gm, function wrapCharacter(character) {
+                            characters.appendChild($('<character>' + character + '</>')[0]);
+                        });
+                        parent.replaceChild(characters, text);
+                    }(this);
+                }
+            });
+        }(dirty[0]));
+        clean.replaceWith(dirty);
+        lines = countLines(dirty, maxLines);
+        return lines;
+    };
+}(jQuery);
+
+var Application = function (w, u) {
+    /* private functions & variables */
+    'use strict';
+    var $ = w.jQuery;
+    var d = w.document;
+    var initialized = false;
+    var jsvoid = 'javascript:void(0);';
+    var id = 0;
+    var config = {
+        auth: {
+            conn: null,
+            window: {},
+            activity: {},
+            exists: {}
+        },
+        wall: {
+            refreshWallXhr: null,
+            gridSizerWidthThemes: false,
+            gridSizerWidth: 0,
+            top: 0,
+            ladda: {},
+            more: {},
+            gridModalFlip: null,
+            gridModal: null,
+            intervalModal: null,
+            callZoomIt: 1,
+            currentZoom: -1,
+            modalInterval: 21000,
+            modalGap: 5000,
+            hideModalPopUp: 0,
+            timeoutHandle: null,
+            oldPosts: [],
+            removedPosts: [],
+            fallingInterval: null,
+            currentColumn: 0,
+            postModal: '',
+            popUpPosts: {}
+        },
+        document: {
+            embedUrl: '',
+            height: 0
+        },
+        live: 'live',
+        gridOptions: null,
+        isEmbed: false,
+        preventRR: true,
+        beforeUnload: true,
+        container: ".page-container .page-content-wrapper .page-content ",
+        requestsCount: 0,
+        notified: 0,
+        synced: 0,
+        notifyController: '',
+        sync: 0,
+        charts: {},
+        defaultAction: "index",
+        initPostWindowMessage: true,
+        messageInterval: null,
+        requests: {},
+        lastWarning: 0,
+        plugins: {},
+        loadingForm: false,
+        messages: {
+            required: "This field is required",
+            spacemsg: "Space is not allowed",
+            commamsg: "Comma is not allowed",
+            matches: "This field must match the {{1}} field",
+            email: "This field must contain a valid email address",
+            emails: "This field must contain all valid email addresses",
+            url: "This field must contain a valid URL",
+            phone: "This field must contain a 10 digit number",
+            date: "This field must contain valid date{{1}}",
+            minimumLength: "This field must be at least {{1}} characters in length",
+            maximumLength: "This field must not exceed {{1}} characters in length",
+            exactLength: "This field must be exactly {{1}} characters in length",
+            rangeLength: "This field must be {{1}} characters in length",
+            lessThan: "This field must contain a number less than {{1}}",
+            greaterThan: "This field must contain a number greater than {{1}}",
+            exact: "This field must contain a number equals to {{1}}",
+            range: "This field must contain a number in range {{1}}",
+            alpha: "This field must only contain alphabetical characters",
+            alphaNumeric: "This field must only contain alpha-numeric characters",
+            alphaDash: "This field must only contain alpha-numeric characters, underscores, and dashes",
+            numeric: "This field must contain only numbers",
+            integer: "This field must contain an integer",
+            decimal: "This field must contain a decimal number",
+            extension: "This field must contain only {{1}} file",
+            extensions: "This field must contain only {{1}} files"
+        }
+    };
+    var uid = function () {
+        return ++id;
+    }
+    var preventReloadRefresh = function () {
+        w.document.onkeydown = function (event) {
+            try {
+                switch (event.keyCode) {
+                    case 116:
+                        event.returnValue = false;
+                        event.keyCode = 0;
+                        return false;
+                    case 82:
+                        if (event.ctrlKey) {
+                            event.returnValue = false;
+                            event.keyCode = 0;
+                            return false;
+                        }
+                        break;
+                }
+            } catch (ignore) {
+            }
+            event = event || w.event;
+            if (event.stopPropagation) {
+                event.stopPropagation();
+            } else {
+                event.cancelBubble = true;
+            }
+        };
+    };
+    var capitalize = function (s) {
+        return s ? s[0].toUpperCase() + s.slice(1) : '';
+    };
+    var onBeforeUnload = function () {
+        w.onbeforeunload = function () {
+            if (config.requestsCount) {
+                var form = "request";
+                if (config.requestsCount > 1) {
+                    form = "requests";
+                }
+                var requests = "\n\n";
+                var current = 1;
+                var request;
+                for (request in config.requests) {
+                    if (config.requests[request].active) {
+                        requests += current++ + ". " + capitalize(config.requests[request].request.action);
+                        requests += " " + capitalize(config.requests[request].request.controller) + "\n";
+                    }
+                }
+                var message = "There is currently following " + config.requestsCount + " " + form;
+                message += " to the server pending." + requests;
+                message += " You may lose recent changes by navigating away.";
+                return message;
+            }
+            return;
+        };
+    };
+    var initHandlers = function () {
+        initSlideToggle();
+        initDelete();
+        initGet();
+        initPost();
+        initPrependHandlers();
+        initMap();
+        initUpdateStatus();
+        initSelect2Picker();
+        initMiniColors();
+        initNoUiSlider();
+        initmScroller();
+        initFileUploader();
+        initToggleCheck();
+        initDateTimePicker();
+        initToggle();
+        initCheckUnCheck();
+    };
+    var cleanArray = function (actual) {
+        var newArray = new Array();
+        for (var i = 0; i < actual.length; i++) {
+            if (actual[i]) {
+                newArray.push(actual[i]);
+            }
+        }
+        return newArray;
+    };
+    var initPrependHandlers = function () {
+        initSetAuthor();
+    };
+    var addActivity = function (activity) {
+        var startTime = Date.now();
+        var noLoader = false;
+        if (typeof activity.noLoader !== 'undefined' && activity.noLoader) {
+            noLoader = true;
+        }
+        if (noLoader) {
+            return;
+        } else {
+            var toastrActivityId = startActivity(activity.summary, "", 0);
+            $(toastrActivityId).append('<span class="toastrProgress" id="activity' + startTime + '" style="width:1%;"></span>');
+            return {
+                toastrActivityId: toastrActivityId,
+                startTime: startTime,
+                bar: $('#activity' + startTime)
+            };
+        }
+    };
+
+    var startActivity = function (message, title, canClose) {
+        return toastr.activity(message, title, {
+            onclick: function () {
+                return false;
+            },
+            timeOut: "50000000",
+            hover: true,
+            showEasing: "swing",
+            hideEasing: "linear",
+            showMethod: "fadeIn",
+            hideMethod: "fadeOut",
+            closeButton: !!canClose,
+            showDuration: "1000",
+            hideDuration: "1000",
+            positionClass: "toast-bottom-right",
+            extendedTimeOut: "50000000"
+        });
+    };
+    var setActivitiesStatus = function (activitiesCount) {
+        var status = "";
+        if (activitiesCount) {
+            if (activitiesCount > 1) {
+                status = '<span class="bold">' + activitiesCount + ' requests</span> in progress...';
+            } else {
+                status = '<span class="bold">1 request</span> in progress...';
+            }
+            $("#activityHourGlass").addClass("fa-spin");
+        } else {
+            status = "All requests processed...";
+            $("#activityHourGlass").removeClass("fa-spin");
+            activitiesCount = '<i class="fa fa-check" style="margin: 0px -6px -5px -5.5px;"></i>';
+        }
+        $("#activitiesCount").html(activitiesCount);
+        $("#activitiesStatus").html(status);
+    };
+    var renderSummary = function (request) {
+        var summary = "";
+        try {
+            summary = config.summaries[request.action][request.type][0];
+            for (var i = 1; i < arguments.length; i++) {
+                var replace = "{{$" + i + "}}";
+                summary = summary.replace(replace, arguments[i]);
+            }
+        } catch (err) {
+            var summary = "Loading...";
+        }
+        return summary;
+    };
+    var isActive = function (url) {
+        var status = false;
+        try {
+            status = config.requests[url].active;
+        } catch (err) {
+            status = false;
+        }
+        return status;
+    };
+    var request = function (request, callback) {
+        if (request.controller) {
+            config.wall.controller = request.controller;
+        }
+        if (isActive(request.type + ":" + request.url)) {
+            var activeActivityReference = $(config.requests[request.type + ":" + request.url].activity.toastrActivityId);
+            activeActivityReference.removeClass('animated shake');
+            setTimeout(function () {
+                activeActivityReference.addClass('animated shake');
+            }, 100);
+            return false;
+        } else {
+            var controllerName = "";
+            try {
+                controllerName = config.loaded.state[request.controller].forms[0];
+            } catch (err) {
+                controllerName = request.controller;
+            }
+            request.summary = request.summary || renderSummary(request, controllerName, "");
+            request.progress = addActivity(request);
+            config.requests[request.type + ":" + request.url] = {
+                active: true,
+                activity: request.progress
+            };
+            config.requestsCount++;
+            setActivitiesStatus(config.requestsCount);
+        }
+        request.container = request.container || {
+            title: "",
+            status: ".statuses",
+            output: ' #' + request.controller + " #" + request.controller + request.action
+        };
+        request.fakeTime = 10;
+        request.uploading = false;
+        request.uploadingFiles = [];
+        if (request.form) {
+            $('input[type="file"]', request.form).each(function (index, el) {
+                if ($(el).val()) {
+                    request.uploading = true;
+                    request.uploadingFiles.push($(el));
+                }
+            });
+        }
+        if (request.uploading) {
+            $(request.form).ajaxSubmit({
+                dataType: 'JSON',
+                uploadProgress: function (event, position, total, percentComplete) {
+                    if (percentComplete > 95) {
+                        request.progress.bar.css({
+                            width: "97%"
+                        });
+                        return false;
+                    } else {
+                        request.progress.bar.css({
+                            width: (percentComplete) + "%"
+                        });
+                    }
+                },
+                complete: function (response, responseType) {
+                    complete(request, response, response.status, callback, !0);
+                }
+            });
+        } else {
+            $.ajax({
+                url: request.url,
+                data: request.data,
+                type: request.type,
+                dataType: 'JSON',
+                beforeSend: function () {
+                    request.timeoutId = setInterval(function () {
+                        if (request.fakeTime === 99) {
+                            clearInterval(request.timeoutId);
+                            return false;
+                        } else {
+                            if (!request.noLoader) {
+                                request.progress.bar.css({
+                                    width: (++request.fakeTime) + "%"
+                                });
+                            }
+                        }
+                    }, 500);
+                },
+                success: function (data) {
+                },
+                complete: function (response, responseType) {
+                    complete(request, response, response.status, callback, !0);
+                }
+            })
+        }
+    }
+    var complete = function (request, response, status, callback, enableForm) {
+        try {
+            clearInterval(request.timeoutId);
+        } catch (err) {
+        }
+        if (enableForm) {
+            enableSubmit(request.form);
+        }
+        config.requests[request.type + ":" + request.url].active = false;
+        config.requestsCount--;
+        request.response = response.responseJSON;
+        if (status != 200 && !request.response.message) {
+            request.showRendered = !1;
+            request.response.type = 'error';
+            request.response.message = response.status + " " + response.statusText;
+        }
+        if (request.response.message) {
+            toastr[request.response.type](request.response.message);
+        }
+        if (request.response.javascript) {
+            var responseJs = request.response.javascript;
+            for (var i = 0; i < responseJs.length; i++) {
+                eval(responseJs[i]);
+            }
+        }
+        if (request.response.postMessage) {
+            var iframeElem = $('.iframeWrapp')[0];
+            var responseJs = request.response.postMessage;
+            for (var i = 0; i < responseJs.length; i++) {
+                PostMessage.send(responseJs[i], iframeElem);
+            }
+        }
+        if ($.isFunction(callback)) {
+            finalizeActivity(request);
+            callback(request);
+        }
+        render(request);
+        return;
+    };
+    var finalizeActivity = function (activity) {
+        try {
+            activity.progress.bar.css({
+                width: "100%"
+            });
+            toastr.clear(activity.progress.toastrActivityId);
+            $('#lodingDiv').hide();
+        } catch (err) {
+        }
+        clearInterval(activity.timeoutId);
+        setActivitiesStatus(config.requestsCount);
+        try {
+            for (var statusIndex in activity.response.status) {
+                var statusClass = "check";
+                switch (activity.response.status[statusIndex][0]) {
+                    case "wraning":
+                        statusClass = "warning";
+                        break;
+                    case "danger":
+                        statusClass = "times";
+                        break;
+                    case "info":
+                        statusClass = "info";
+                        break;
+                }
+                Application.notify(activity.response.status[statusIndex][0], activity.response.status[statusIndex][1]);
+                $(activity.progress.id + " .activity .progress").remove();
+                $(activity.progress.id + " .activity .task .percent .label .fa").removeClass("fa-spin fa-spinner").addClass("fa-" + statusClass);
+                $(activity.progress.id + " .activity .task .percent .label").removeClass("label-info").addClass("label-" + activity.response.status[statusIndex][0]).show();
+                $(activity.progress.id + " .activity").html('<span class="time livestamp" data-livestamp="' + parseInt(Date.now() / 1000) + '">a few seconds ago</span><span class="details">' + $(activity.progress.id + " .activity .task .percent").html() + $(activity.progress.id + " .activity .task .desc").html() + '</span>');
+            }
+        } catch (err) {
+            console.warn(err);
+        }
+    };
+    var render = function (r) {
+        finalizeActivity(r);
+
+        if (r.response.alert) {
+            var buttons = {};
+            try {
+                if (r.response.alert.actions.main) {
+                    buttons.main = {
+                        label: r.response.alert.actions.main.title,
+                        className: r.response.alert.actions.main.class,
+                        callback: function () {
+                            return true;
+                        }
+                    };
+                }
+            } catch (e) {
+
+            }
+            try {
+                if (r.response.alert.actions.primary) {
+                    buttons.primary = {
+                        label: r.response.alert.actions.primary.title,
+                        className: r.response.alert.actions.primary.class,
+                        callback: function () {
+                            Application[r.response.alert.actions.primary.callback].apply(u, r.response.alert.actions.primary.callbackData);
+                            return true;
+                        }
+                    };
+                }
+            } catch (e) {
+
+            }
+            bootbox.dialog({
+                closeButton: false,
+                onEscape: false,
+                message: r.response.alert.message,
+                title: r.response.alert.title,
+                buttons: buttons
+            });
+        }
+        if (r.response.confirm) {
+            swal({
+                title: r.response.confirm.title,
+                text: r.response.confirm.message,
+                allowEscapeKey: false,
+                type: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#eb5d68",
+                confirmButtonText: "Continue",
+                closeOnConfirm: true,
+                html: true,
+            },
+                    function () {
+                        request({
+                            url: config.baseUrl + r.response.confirm.actions.success.url,
+                            type: "post",
+                            summary: r.response.confirm.summary,
+                            data: {
+                                token: r.response.confirm.actions.success.token
+                            },
+                            controller: r.controller,
+                            action: r.response.action,
+                            container: " #" + r.controller + " #" + r.action + r.action,
+                            showRendered: true
+                        });
+                        return true;
+                    });
+        }
+    };
+    var detectBrowser = function () {
+        if (navigator.userAgent.indexOf("Chrome") != -1) {
+            jQuery("body").addClass("safari");
+        } else if (navigator.userAgent.indexOf("Safari") != -1) {
+            jQuery("body").addClass("safari");
+        } else if ((navigator.userAgent.indexOf("MSIE") != -1) || (!!document.documentMode == true)) {
+            jQuery("body").addClass("ieBrowser");
+        } else {
+            jQuery("body").addClass("otherBrowser");
+        }
+    }
+    var init = function (settings) {
+        var OSName = "Unknown OS";
+
+        if (navigator.appVersion.indexOf("Win") != -1) {
+        }
+        detectBrowser();
+        $.extend(config, settings);
+        if (config.preventRR) {
+            preventReloadRefresh();
+        }
+        if (config.beforeUnload) {
+            onBeforeUnload();
+        }
+        initHandlers();
+        if (config.initNotifyNSync) {
+            notifyNSync();
+        }
+        if (config.watchWall) {
+            watchWall();
+        }
+        if (config.url) {
+            config.wall.more.url = config.url;
+        }
+        toastr.options = {
+            timeOut: "5000",
+            showEasing: "swing",
+            hideEasing: "linear",
+            showMethod: "fadeIn",
+            hideMethod: "fadeOut",
+            closeButton: true,
+            showDuration: "1000",
+            hideDuration: "1000",
+            positionClass: "toast-bottom-right",
+            extendedTimeOut: "3000"
+        };
+        $.fn.extend({
+            animateIt: function (animation) {
+                var animationEnd = 'webkitAnimationEnd mozAnimationEnd MSAnimationEnd oanimationend animationend';
+                $(this).addClass('animated ' + animation).one(animationEnd, function () {
+                    $(this).removeClass('animated ' + animation);
+                });
+            }
+        });
+        if (config.initPostWindowMessage) {
+            window.addEventListener("message", receiveMessage, false);
+        }
+        initialized = true;
+        config.current = config.baseUrl;
+    };
+    var receiveMessage = function (event) {
+        if (event.origin == 'https://app.tagembed.com') {
+            PostMessage.get(event);
+        }
+    };
+    var initBootbox = function () {
+        try {
+            $(".bootbox.binit").removeClass("binit").each(function (e) {
+
+                var field = $(this);
+                field.click(function (e) {
+                    e.preventDefault();
+                    var msg = $(this).attr("data-msg") || $(this).attr("data-action");
+                    if ($(this).attr("data-action") == 'confirm') {
+                        bootbox.confirm(msg, function (result) {
+                            if (result) {
+                                window.location.href = field.attr('href');
+                            }
+                        });
+                    }
+                });
+            });
+        } catch (err) {
+        }
+    };
+    var initRemoveModal = function () {
+        try {
+
+            $('body').find('#modalPost').on('hidden', function (e) {
+                $(this).find('iframe').remove();
+                $(this).find('video').remove();
+
+            });
+        } catch (err) {
+        }
+    };
+    var urlBeautifier = function (url) {
+        return url;
+        var partsArray = url.split('/');
+        var baseIndex = partsArray.indexOf(config.basePath);
+        partsArray = partsArray.filter(function (entry) {
+            return /\S/.test(entry);
+        });
+        partsArray.splice(0, baseIndex);
+        if (config.basePath == partsArray[0]) {
+            delete partsArray[0];
+        }
+        partsArray = partsArray.filter(function (entry) {
+            return /\S/.test(entry);
+        });
+        url = partsArray.join('/');
+        return url;
+    };
+    var enableSubmit = function (form) {
+        try {
+            if (form.length === 1) {
+                $("button[type=submit], button[type=reset], input[type=submit], input[type=reset]", form).removeAttr("disabled");
+                config.wall.ladda.stop();
+            }
+        } catch (err) {
+
+        }
+    };
+    var urlSeparater = function (request) {
+        request = request.split("?")[0];
+        var pathsOld = request.split(config.basePath);
+        var paths = pathsOld.map(function (e) {
+            return e.replace(/^\/|\/$/g, '');
+        });
+        if (paths[1] === void 0) {
+            paths[1] = paths[0];
+        }
+        var requestParts = paths[1].split('/');
+        if (requestParts.length >= 2) {
+            return {
+                controller: requestParts[0],
+                action: requestParts[1]
+            };
+        } else {
+            return {
+                controller: requestParts[0],
+                action: "index"
+            };
+        }
+    };
+    var initSlideToggle = function () {
+        $(".slideToggle.init").removeClass("init").each(function () {
+            try {
+                var element = $(this);
+                element.click(function (e) {
+                    e.preventDefault();
+                    $(element.attr('data-slide-toggle')).slideToggle();
+                });
+            } catch (err) {
+
+            }
+        });
+    };
+    var initPost = function () {
+        $("form.init").each(function (index, element) {
+            var form = $(element);
+            form.removeClass("init");
+            var fields = $("input.validate, select.validate, textarea.validate", form);
+            fields.on('change keyup', function () {
+                Application.validate($(this), form, 0);
+            });
+            form.on('submit', function (event) {
+                event.preventDefault();
+                var form = $(this);
+                var formType = form.attr('method');
+                if (!form.hasClass("maintainPopUp")) {
+                    $(".jsModals").modal("hide");
+                }
+                $("textarea.editor", $(this)).each(function () {
+                    var $textarea = $(this);
+                    $textarea.val(CKEDITOR.instances[$textarea.attr("id")].getData());
+                });
+                /* Validate data */
+                $(".form-group", form).removeClass("has-error");
+                $(".responseMessage", form).removeClass("fa-warning");
+                var errorNeedToBeFixed = Application.validate(fields, form, 1);
+                try {
+                    toastr.clear(config.lastWarning);
+                } catch (err) {
+
+                }
+                if (errorNeedToBeFixed === 0) {
+                    var url = form.attr("action");
+                    url = urlBeautifier(url);
+                    var pathParts = urlSeparater(url);
+                    var controller = pathParts['controller'];
+                    var action = (pathParts['action']) ? pathParts['action'] : config.defaultAction;
+                    var data = form.serializeArray();
+                    var btnElem = $("button[type=submit], button[type=reset], input[type=submit], input[type=reset]", form);
+                    btnElem.attr('data-style', 'expand-left');
+                    if (!btnElem.hasClass('ladda-button')) {
+                        btnElem.addClass('ladda-button');
+                    }
+                    btnElem.attr("disabled", true);
+                    if (btnElem.length > 0) {
+                        config.wall.ladda = Ladda.create(btnElem[0]);
+                        config.wall.ladda.start();
+                    }
+                    var container = " #" + controller + " #" + controller + action;
+                    var showRendered = true;
+                    if (form.attr("data-container")) {
+                        showRendered = false;
+                        container = form.attr("data-container");
+                    }
+                    $(".responseMessage", $(this)).removeClass("fa-check fa-warning");
+                    $(".form-group", $(this)).removeClass("has-error has-warning has-success has-info");
+                    var summary = form.attr('data-summary');
+                    if (form.hasClass('popUp')) {
+                        data.push({
+                            name: "popUpId",
+                            value: form.data('popUpId')
+                        });
+                        data.push({
+                            name: "popUp",
+                            value: !0
+                        });
+                    }
+                    var noLoader = false;
+                    if (form.hasClass('noLoader')) {
+                        noLoader = true;
+                    }
+                    request({
+                        form: form,
+                        url: url,
+                        type: formType,
+                        summary: summary,
+                        data: data,
+                        controller: controller,
+                        action: action,
+                        showRendered: false,
+                        noLoader: noLoader
+                    },
+                            function (request) {
+                                if (request.response.hidePopUp) {
+                                    $(".jsModals").modal("hide");
+                                }
+
+                                $(".jsModals:hidden").remove();
+                                if (request.response.content) {
+                                    if (form.hasClass('popUp')) {
+                                        var modalId = "customModal" + Date.now();
+                                        var modalWidth = form.attr('data-popup-width') || '';
+                                        var modalTemplate = '<div class="modal TESTN jsModals" id="' + modalId + '" data-backdrop="static" ' + modalWidth + ' tabindex="-1" data-width="760px" data-focus-on="input:first">' +
+                                                '<div class="modal-dialog">' +
+                                                '<div class="modal-content">' +
+                                                '<div class="modal-header">' +
+                                                '<button type="button" class="close" data-dismiss="modal" aria-hidden="true"></button>' +
+                                                '<h4 class="modal-title"></h4>' +
+                                                '</div>' +
+                                                '<div class="modal-body">  </div>' +
+                                                '</div>' +
+                                                '</div>' +
+                                                '</div>';
+                                        $("body").append(modalTemplate);
+                                        var modal = $("#" + modalId);
+                                        $(".modal-title", modal).html(request.response.title);
+                                        $(".modal-body", modal).html(request.response.content);
+                                        $(".modal-body .popUpId", modal).data('popUpId', modalId);
+                                        modal.modal();
+                                    } else {
+                                        finalizeView(request);
+                                    }
+                                    App.initAjax();
+                                    initHandlers();
+                                }
+                            });
+                } else {
+                    config.lastWarning = Application.notify("danger", errorNeedToBeFixed + ((errorNeedToBeFixed > 1) ? " errors" : " error") + " need to be fixed.");
+                }
+            });
+        });
+    };
+    var initGet = function () {
+        $("a.init").not('.delete').removeClass("init").attr("href", function (index, href) {
+            try {
+                if (href === u || href.length === 0 || $(this).hasClass("setjsvoid")) {
+                    return jsvoid;
+                } else if ($(this).hasClass("sethref")) {
+                    return $(this).data('set-href');
+                } else if (!(href.substring(0, 1) === "#" || href.substring(0, 10) === "javascript" || $(this).hasClass("external"))) {
+                    var link = $(this);
+                    link.on('click', function (e) {
+                        e.preventDefault();
+                        href = urlBeautifier(href);
+                        var pathParts = urlSeparater(href);
+                        var controller = pathParts['controller'];
+                        var action = (pathParts['action']) ? pathParts['action'] : config.defaultAction;
+                        var summary = link.attr('data-summary');
+                        var from = link.attr("data-selected-group") || 'index';
+                        if (link.hasClass("multiple")) {
+                            records = config.loaded.state[controller].selected[from];
+
+                            pathParts = pathParts.concat(records);
+                            if (!link.hasClass("isolate")) {
+                                if (!records || !records.length) {
+                                    var info = link.attr('data-select-warning') || "Select " + config.loaded.state[controller].forms[0] + " to " + pathParts[1];
+                                    Application.notify('info', info);
+                                    return false;
+                                }
+                            }
+                        }
+                        if (!link.hasClass("maintainPopUp")) {
+                            $(".jsModals").modal("hide");
+                        }
+                        var dataToBeSend = {};
+                        if (link.hasClass('popUp')) {
+                            dataToBeSend = {
+                                popUpId: link.data('popUpId'),
+                                popUp: true,
+                            };
+                        } else if (!link.hasClass('resetAction')) {
+                            if ($('div#' + controller + action).length) {
+
+                                $('.controller').hide();
+                                $('.controller .action').hide();
+                                $('div#' + controller).show();
+                                $('div#' + controller + action).show();
+                                return;
+                            }
+                        }
+                        var noLoader = false;
+                        if (link.hasClass('noLoader')) {
+                            noLoader = true;
+                        }
+                        request({
+                            url: href,
+                            type: "get",
+                            summary: summary,
+                            data: dataToBeSend,
+                            controller: controller,
+                            action: action,
+                            noLoader: noLoader,
+                            showRendered: false
+                        },
+                                function (request) {
+                                    if (request.response.hidePopUp) {
+                                        $(".jsModals").modal("hide");
+                                    }
+
+                                    $(".jsModals:hidden").remove();
+                                    if (request.response.content) {
+                                        if (link.hasClass('popUp')) {
+                                            finalizePopUp(request, link);
+                                        } else {
+                                            finalizeView(request);
+                                        }
+                                        App.initAjax();
+                                        initHandlers();
+                                    }
+                                });
+                    });
+                    return '#';
+                }
+            } catch (err) {
+                log("InitGet error", err);
+            }
+        });
+    };
+    var initDelete = function () {
+        $('.delete.init').removeClass('init').each(function () {
+            var href = $(this).attr('href');
+            $(this).attr('href', 'javascript:void(0);');
+            $(this).attr('data-href', href);
+            var field = $(this);
+            field.click(function (e) {
+                swal({
+                    title: field.attr("data-title") || "Are you sure?",
+                    text: field.attr("data-text"),
+                    type: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: '#DD6B55',
+                    confirmButtonText: field.attr("data-confirm-text") || 'Yes',
+                    cancelButtonText: field.attr("data-cancel-text") || "No"
+                },
+                        function (isConfirm) {
+                            if (isConfirm) {
+                                var link = field;
+                                var href = link.attr('data-href');
+                                href = urlBeautifier(href);
+                                var pathParts = urlSeparater(href);
+                                var controller = pathParts['controller'];
+                                var action = (pathParts['action']) ? pathParts['action'] : config.defaultAction;
+                                var summary = link.attr('data-summary');
+                                request({
+                                    url: href,
+                                    type: "get",
+                                    summary: summary,
+                                    controller: controller,
+                                    action: action,
+                                    container: " #" + controller + " #" + controller + action,
+                                    showRendered: true
+                                }, function (request) {
+                                    if (request.response.content) {
+                                        if (link.hasClass('popUp')) {
+                                            finalizePopUp(request, link);
+                                        } else {
+                                            finalizeView(request);
+                                        }
+                                        App.initAjax();
+                                        initHandlers();
+                                    }
+                                });
+                            }
+                        });
+            });
+        })
+    };
+    var finalizeView = function (request) {
+        $('.controller').hide();
+        $('.controller .action').hide();
+        var controller = request.controller;
+        var action = request.action;
+        if ($('#' + controller).length) {
+            $('#' + controller).show();
+            if ($('#' + controller + action).length) {
+                $('#' + controller + action).show();
+                $('#' + controller + action).html(request.response.content);
+            } else {
+                var html = '<div class="action" id="' + controller + action + '">' + request.response.content + '</div>';
+                $('#' + controller).append(html);
+            }
+        } else {
+            var html = '<div class="controller" id="' + controller + '">' +
+                    +'<div class="action" id="' + controller + action + '">' +
+                    request.response.content +
+                    +'</div>' +
+                    +'</div>';
+            $('#controllerContent').append(html);
+        }
+    };
+    var finalizePopUp = function (request, link) {
+        var modalId = request.response.viewId || link.attr('data-popup-id') || "customModal" + Date.now();
+        var modalWidth = request.response.popUpWidth || link.attr('data-popup-width') || '';
+        if (request.response.title === undefined) {
+            request.response.title = request.action.charAt(0).toUpperCase() + request.action.slice(1);
+        }
+        var ids = '';
+        if (request.response.title == 'Feeds') {
+            ids = 'FeedModal aplha-dahboard-modal';
+        }
+        if (request.response.title == 'Create Widget') {
+            ids = 'CreateWallModal aplha-dahboard-modal';
+        }
+        if (request.response.title == 'Edit Widget') {
+            ids = 'EditWallModal aplha-dahboard-modal';
+        }
+        if (request.response.title == 'Add Collaborator') {
+            ids = 'AddCollaboraterModal aplha-dahboard-modal';
+        }
+        if (request.response.title == 'Create RSS Feed') {
+            ids = 'AddRSSModal aplha-dahboard-modal';
+        }
+        var modalTemplate = '<div class="modal feedPopupModal customModalPopup customModerationModal jsModals aplha-dahboard-modal' + ids + '" id="' + modalId + '" data-backdrop="static" ' + modalWidth + ' tabindex="-1" data-width="760px" data-focus-on="input:first">' +
+                '<div class="modal-dialog">' +
+                '<div class="modal-content">' +
+                '<div class="modal-header customHeader justify-content-between">' +
+                '<button type="button" class="commanBtn btn-sm backBtn1" style="top:0;display:none;"></button>' +
+                '<h4 class="modal-title">' + request.response.title + '</h4>' +
+                '<p class="btn btn-danger m-0"><button type="button" class="close" data-dismiss="modal" aria-hidden="true"></button></p>' +
+                '</div>' +
+                '<div class="modal-body">' + request.response.content + '</div>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
+        $("body").append(modalTemplate);
+        var modal = $("#" + modalId);
+        config.wall.lastModal = modal;
+        modal.modal();
+    };
+    var initMap = function () {
+        $("#advanced-placepicker").each(function () {
+            var target = this;
+            var $collapse = $(this).parents('.form-group').next('.collapse');
+            var $map = $collapse.find('.another-map-class');
+            function placeChanged() {
+                var place = autocomplete.getPlace();
+                var latitude = place.geometry.location.lat();
+                var longitude = place.geometry.location.lng();
+                var latLng = latitude + "," + longitude;
+                var Location = place.address_components[0].long_name;
+                for (var i = 1; i < place.address_components.length; i++) {
+                    Location = Location + ', ' + place.address_components[i].long_name;
+                }
+                if ($('#advanced-placepicker-hidden').length) {
+                    document.getElementById("advanced-placepicker-hidden").value = latLng;
+                }
+                if ($('#advanced-placepicker-hidden-location').length) {
+                    document.getElementById("advanced-placepicker-hidden-location").value = Location;
+                }
+                if ($('#advanced-placepicker-hidden-placeId').length) {
+                    document.getElementById("advanced-placepicker-hidden-placeId").value = place.place_id;
+                }
+                if ($('#advanced-placepicker-hidden-placeName').length) {
+                    document.getElementById("advanced-placepicker-hidden-placeName").value = place.name;
+                }
+            }
+            var autocomplete = new google.maps.places.Autocomplete(this, {
+                types: ['establishment'],
+                fields: ['name', 'place_id', 'adr_address', 'geometry', 'address_components']
+            })
+            autocomplete.addListener('place_changed', placeChanged)
+        });
+    };
+    var initUpdateStatus = function () {
+        try {
+            $(".updateStatus.init").removeClass("init").each(function () {
+                var status = $(this).prop("checked");
+                var offcolor = $(this).attr("data-off-color");
+                var oncolor = $(this).attr("data-on-color");
+                var forId = $(this).attr('id');
+                var url = $(this).attr('data-url');
+                var dataStatus = $(this).attr('data-status');
+                if (!status) {
+                    $('label[for="' + forId + '"]').find('.onoffswitch-switch').css('background', offcolor);
+                } else {
+                    $('label[for="' + forId + '"]').find('.onoffswitch-switch').css('background', oncolor);
+                }
+                $(this).change(function () {
+                    var trigger = $(this);
+                    var url = trigger.attr('data-url');
+                    var status = $(this).prop("checked");
+                    var offcolor = $(this).attr("data-off-color");
+                    var oncolor = $(this).attr("data-on-color");
+                    var forId = trigger.attr('id');
+                    if (typeof url != 'undefined') {
+                        if (!url) {
+                            if ($(this).prop('checked')) {
+                                $(this).prop('checked', false);
+                            } else {
+                                $(this).prop('checked', true);
+                            }
+                            if (dataStatus) {
+                                $('.FeedModal .modal-title').html('Permission Error');
+                                $('.FeedModal .backBtn1').show();
+                                $('.contntManageFeeds').hide();
+                                $('.errorManageFeeds').show();
+                            } else {
+                                permissionError('Unable to use Manual Moderation?', 'Oops! Looks like you need to upgrade your plan in order to use Manual Moderation', 'image', 'image/menual-icon.svg');
+                            }
+                            return;
+                        }
+                    }
+                    if (!status) {
+                        $('label[for="' + forId + '"]').find('.onoffswitch-switch').css('background', offcolor);
+                    } else {
+                        $('label[for="' + forId + '"]').find('.onoffswitch-switch').css('background', oncolor);
+                    }
+                    if (!url)
+                        return;
+                    url = urlBeautifier(url);
+                    var queryStart = url.indexOf('?');
+                    var query = '';
+                    if (queryStart > -1) {
+                        var query = url.slice(queryStart);
+                    } else {
+                        queryStart = url.length;
+                    }
+                    var pathParts = url.slice(0, queryStart).toString().split("/");
+                    var controller = pathParts[0];
+                    var action = (pathParts[1]) ? pathParts[1] : config.defaultAction;
+                    var records = [];
+                    controller = controller.toLowerCase();
+                    action = action.toLowerCase();
+                    pathParts.push(query);
+                    request({
+                        url: url,
+                        type: "POST",
+                        data: {
+                            status: (status)
+                        },
+                        controller: controller,
+                        action: action,
+                    });
+                });
+            });
+        } catch (err) {
+        }
+    };
+    var initSelect2Picker = function () {
+        try {
+            $(".select2Picker.init").removeClass("init").each(function () {
+                $(this).select2({
+                    placeholder: $(this).data("select-hint"),
+                    allowClear: true
+                });
+            });
+        } catch (err) {
+        }
+    };
+    var initMiniColors = function () {
+        try {
+            $(".miniColors.init").removeClass("init").minicolors({
+                control: $(this).attr('data-control') || 'hue',
+                defaultValue: $(this).attr('data-defaultValue') || '',
+                inline: $(this).attr('data-inline') === 'true',
+                letterCase: $(this).attr('data-letterCase') || 'lowercase',
+                opacity: $(this).attr('data-opacity'),
+                position: $(this).attr('data-position') || 'bottom left',
+                change: function (hex, opacity) {
+                    if (!hex)
+                        return;
+                    if (opacity)
+                        hex += ', ' + opacity;
+                },
+                theme: 'bootstrap'
+            });
+        } catch (err) {
+
+        }
+    };
+    var initNoUiSlider = function () {
+        try {
+            $(".noUiSlider.init").removeClass("init").each(function () {
+                var field = $(this);
+                var fieldDOM = field[0];
+                noUiSlider.create(fieldDOM, {
+                    start: field.attr("data-p-start") || 10,
+                    steps: 1,
+                    range: {
+                        min: parseInt(field.attr("data-p-min") || 0),
+                        max: parseInt(field.attr("data-p-max") || 30)
+                    },
+                    format: wNumb({
+                        decimals: 3,
+                        thousand: '.',
+                        postfix: '',
+                    })
+                });
+                fieldDOM.noUiSlider.on('update', function (values, handle) {
+                    $(this).find(".noUi-handle.noUi-handle-lower").attr("data-original-title", values[handle]).tooltip("show");
+                    $(field.attr("data-update-value")).val(values[handle]);
+                    $(field.attr("data-update-html")).html(values[handle]);
+                    if (field.attr("data-onupdate")) {
+                        if (field.attr("data-onupdate") == 'cardStyleFont')
+                            cardStyleFont(values[handle]);
+                    }
+                });
+            });
+        } catch (err) {
+
+        }
+    };
+    var cardStyleFont = function (value) {
+        $("#wallCardStylePreview .postItem.item .postedText.setFont").css({
+            'font-size': value + 'px'
+        });
+    };
+    var initmScroller = function () {
+        $('.init.hScroller').removeClass('hScroller').each(function () {
+            try {
+                $(this).mCustomScrollbar({
+                    axis: "y",
+                    theme: "dark",
+                    autoExpandScrollbar: true
+                });
+            } catch (err) {
+                console.warn('Scroller Error : ' + err);
+            }
+        });
+    }
+    var initSetAuthor = function () {
+        try {
+            $('.authorDetails img').not('img[data-check="checked"]').each(function () {
+                var imgElem = $(this);
+                var imageUrl = $(this).attr('src');
+
+                if (imageUrl == "") {
+                    imgElem.attr("src", "https://app.tagembed.com/img/author2.png");
+                }
+                try {
+                    if (imageUrl) {
+                        imgElem.imagesLoaded().progress(function (instance, image) {
+                            var result = image.isLoaded ? 'loaded' : 'broken';
+                            imgElem.attr('data-check', 'checked');
+                            if (result != 'loaded') {
+                                imgElem.attr("src", "https://app.tagembed.com/img/author2.png");
+                            }
+                        });
+                    }
+                } catch (e) {
+                }
+            });
+        } catch (err) {
+
+        }
+    }
+    var initFileUploader = function () {
+        var file = 'https://placeholdit.imgix.net/~text?txtsize=19&bg=efefef&txtclr=aaaaaa%26text%3Dno%2Bimage&txt=no+image&w=200&h=150';
+        $('.filepreview.init').removeClass('init').each(function () {
+            var elem = $(this);
+            var target = document.getElementById(elem.attr('data-target'));
+            var removeIcon = null;
+            elem.change(function (e) {
+                var previousSrc = target.src;
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    target.src = e.target.result;
+                    $('<i class="fa fa-close close customCloseImage"></i>').insertAfter(target);
+                    removeIcon = $(target).next('.customCloseImage');
+                    removeIcon.click(function () {
+                        target.src = previousSrc;
+                        removeIcon.remove();
+                        elem.wrap('<form>').closest('form').get(0).reset();
+                        elem.unwrap();
+                    });
+                };
+                reader.readAsDataURL(this.files[0]);
+            });
+        })
+    };
+    var initCheckUnCheck = function () {
+        try {
+            $(".checkUnCheck.init").removeClass("init").each(function () {
+                var checkUnCheck = $(this);
+                var selected = checkUnCheck.attr('data-selected-group');
+                var controller = checkUnCheck.attr('data-controller');
+                var elementsGroup = checkUnCheck.attr('data-elements-group');
+                config.loaded.state[controller].selected[selected] = [];
+                var chks;
+                if (elementsGroup) {
+                    chks = d.getElementsByName(elementsGroup);
+                } else {
+                    chks = d.getElementsByName("multiple[]");
+                }
+                checkUnCheck.on('change', function () {
+                    var records = [];
+                    if (checkUnCheck.is(':checked')) {
+                        /* Check all items */
+                        for (var i = 0; i < chks.length; i++) {
+                            chks[i].checked = true;
+                            records.push(chks[i].value);
+                            $(chks[i]).parent("span").addClass("checked");
+                            $(".record" + controller + selected + chks[i].value).addClass("selected");
+                        }
+                    } else {
+                        /* Un Check all items */
+                        for (var i = 0; i < chks.length; i++) {
+                            chks[i].checked = false;
+                            $(chks[i]).parent("span").removeClass("checked");
+                            $(".record" + controller + selected + chks[i].value).removeClass("selected");
+                        }
+                    }
+                    if (records.length) {
+                        config.loaded.state[controller].selected[selected] = records;
+                        $("." + controller + selected + "selected").show();
+                        $("." + controller + selected + "selected .count").html(records.length);
+                    } else {
+                        config.loaded.state[controller].selected[selected] = [];
+                        $("." + controller + selected + "selected").hide();
+                    }
+                });
+            });
+        } catch (err) {
+        }
+    };
+    var initToggle = function () {
+        try {
+            $('input[type=checkbox][data-toggle^=toggle]').bootstrapToggle();
+        } catch (err) {
+        }
+    };
+    var initToggleCheck = function () {
+        try {
+            $(".toggleCheck.init").removeClass("init").each(function () {
+                var toggleCheck = $(this);
+                var selected = toggleCheck.attr('data-selected-group');
+                var controller = toggleCheck.attr('data-controller');
+                var elementsGroup = toggleCheck.attr('data-elements-group');
+                var toggle = toggleCheck.attr('data-toggle');
+                var removeAllCheck = !1;
+                var chks;
+                if (elementsGroup) {
+                    chks = d.getElementsByName(elementsGroup);
+                } else {
+                    chks = d.getElementsByName("multiple[]");
+                }
+                toggleCheck.on('change', function () {
+                    var records = [];
+                    for (var i = 0; i < chks.length; i++) {
+                        if (chks[i].checked) {
+                            records.push(chks[i].value);
+                            $(".record" + controller + selected + chks[i].value).addClass('selected');
+                        } else {
+                            removeAllCheck = !0;
+                            $(".record" + controller + selected + chks[i].value).removeClass('selected');
+                        }
+                    }
+                    if (removeAllCheck) {
+                        $("#" + toggle)[0].checked = false;
+                    } else {
+                        $("#" + toggle)[0].checked = true;
+                    }
+                    if (records.length) {
+                        config.loaded.state[controller].selected[selected] = records;
+                        $("." + controller + selected + "selected").show();
+                        $("." + controller + selected + "selected .count").html(records.length);
+                    } else {
+                        config.loaded.state[controller].selected[selected] = [];
+                        $("." + controller + selected + "selected").hide();
+                    }
+                });
+            });
+        } catch (err) {
+        }
+    };
+    var initDateTimePicker = function () {
+        try {
+            $(".dateTimePicker.init").removeClass("init").datetimepicker({
+                autoclose: true,
+                /*startDate: new Date(),*/
+                isRTL: App.isRTL(),
+                format: "dd MM yyyy  hh:ii",
+                pickerPosition: (App.isRTL() ? "top-right" : "top-left")
+            });
+        } catch (err) {
+
+        }
+    };
+    var initPlugins = function (plugins) {
+        if (!plugins) {
+            for (var plugin in config.plugins) {
+            }
+        } else {
+            for (plugin in plugins) {
+            }
+        }
+    };
+    /* public functions*/
+    return {
+        reInit: function () {
+            return initHandlers();
+        },
+        uid: function () {
+            return uid();
+        },
+        getConfig: function () {
+            return config;
+        },
+        setConfig: function (configration) {
+            config = configration;
+            return config;
+        },
+        validate: function (fields, form, setFocus) {
+            var errorNeedToBeFixed = 0;
+            var firstError = !0;
+            fields.each(function () {
+                var field = $(this);
+                $("#" + field.attr("id"), form).closest(".form-group").removeClass("has-error");
+                $("#" + field.attr("id") + "error", form).html('');
+                var invalid = false;
+                var message = "";
+                var value = field.val();
+                var validateIf = "";
+                var canResetRules = true;
+                var required = field.hasClass("required") || field.attr("required");
+                var CusInitValidate = field.hasClass("cus-init-validate");
+                var rulesList = field.attr("data-validate");
+                validateIf = field.attr("data-validateif") || null;
+                if (validateIf) {
+                    var check = $(validateIf).val();
+                    var matchAll = field.attr("data-validatematchall");
+                    var match = field.attr("data-validatematch");
+                    var matches = field.attr("data-validatematch");
+                    if (check && check.length) {
+                        if (matchAll) {
+                            console.info("For all values", invalid, required, rulesList);
+                            canResetRules = false;
+                        } else if (match.length) {
+                            console.info("For match value", match);
+                            if (matches !== check) {
+                                required = false;
+                                rulesList = "";
+                            }
+                        } else if (matches.length) {
+                            var checkMatches = matches.split(",");
+                            console.info("For match values", checkMatches);
+                            for (var k in checkMatches) {
+                                if (checkMatches[k] !== check) {
+                                    required = false;
+                                    rulesList = "";
+                                }
+                            }
+                        }
+                    }
+                }
+                var checforspaceNcomma = false;
+                if (required && (value.length === 0 || value === 0)) {
+                    errorNeedToBeFixed++;
+                    invalid = true;
+                    message = config.messages.required;
+                } else if ((value === 0 || value === null || value === u || value.length === 0) && canResetRules) {
+                    rulesList = "";
+                } else if (value && CusInitValidate) {
+
+                }
+                if (!invalid && rulesList && rulesList.length > 0) {
+                    var rules = rulesList.split(",");
+                    var allowsExtensionsList = "";
+                    var allowsExtensions = [];
+                    var extension = "";
+                    var invalidExtension = true;
+                    for (var i in rules) {
+                        var extensionForm = "extension";
+                        console.info("Minimum Length Check");
+                        switch (rules[i]) {
+                            case "email":
+                            case "emailId":
+                                var re = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+                                if (!re.test(value)) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.email;
+                                }
+                                break;
+                            case "url":
+                                if (!/^((http|https):\/\/(\w+:{0,1}\w*@)?(\S+)|)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?$/.test(value)) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.url;
+                                }
+                                break;
+                            case "phone":
+                                if (!/^[1-9]{1}[0-9]{9}$/.test(value)) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.phone;
+                                }
+                                break;
+                            case "date":
+                                if ($.datepicker !== undefined) {
+                                    var format = field.attr("data-date-format");
+                                    try {
+                                        console.info(format);
+                                        var timastamp = $.datepicker.parseDate(format, value);
+                                        console.info(timastamp);
+                                        new Date(timastamp);
+                                    } catch (e) {
+                                        errorNeedToBeFixed++;
+                                        invalid = true;
+                                        message = config.messages.date.replace("{{1}}", ((format) ? ' in format(' + format + ')' : ''));
+                                    }
+                                }
+                                break;
+                            case "minimumLength":
+                                var minimumLength = field.attr("data-minimumlength");
+                                if (value.length < minimumLength) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.minimumLength.replace("{{1}}", minimumLength);
+                                }
+                                break;
+                            case "maximumLength":
+                                var maximumLength = field.attr("data-maximumlength");
+                                if (value.length > maximumLength) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.maximumLength.replace("{{1}}", maximumLength);
+                                }
+                                break;
+                            case "exactLength":
+                                var exactLength = field.attr("data-exactlength");
+                                if (value.length !== exactLength) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.exactLength.replace("{{1}}", exactLength);
+                                }
+                                break;
+                            case "rangeLength":
+                                var minimum = field.attr("data-rangeminimum");
+                                var maximum = field.attr("data-rangemaximum");
+                                if (value.length < minimum || value.length > maximum) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.rangeLength.replace("{{1}}", minimum + " - " + maximum);
+                                }
+                                break;
+                            case "minimum":
+                                minimum = field.attr("data-minimum");
+                                if (parseFloat(value, 10) < parseFloat(minimum, 10)) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.lessThan.replace("{{1}}", minimum);
+                                }
+                                break;
+                            case "maximum":
+                                maximum = field.attr("data-maximumlength");
+                                if (parseFloat(value, 10) < parseFloat(maximum, 10)) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.greaterThan.replace("{{1}}", maximum);
+                                }
+                                break;
+                            case "exact":
+                                var exact = field.attr("data-exactlength");
+                                if (parseFloat(value, 10) < parseFloat(exact, 10)) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.exact.replace("{{1}}", exact);
+                                }
+                                break;
+                            case "minmax":
+                                minimum = field.attr("data-min");
+                                maximum = field.attr("data-max");
+                                if (parseFloat(value, 10) < parseFloat(minimum, 10) || parseFloat(value, 10) > parseFloat(maximum, 10)) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.range.replace("{{1}}", minimum + " - " + maximum);
+                                }
+                                break;
+                            case "matches":
+
+                                if (value !== $(field.attr("data-match"), form).val()) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.matches.replace("{{1}}", field.attr("data-matchfield"));
+                                }
+                                break;
+                            case "extensions":
+                                extensionForm = "extensions";
+                                allowsExtensionsList = field.attr("data-extensions");
+                                allowsExtensions = allowsExtensionsList.split(",");
+                                extension = value.substr((value.lastIndexOf('.') + 1));
+                                invalidExtension = true;
+                                for (var j in allowsExtensions) {
+                                    if (allowsExtensions[j] === extension) {
+                                        invalidExtension = false;
+                                        break;
+                                    }
+                                }
+                                if (invalidExtension) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages[extensionForm].replace("{{1}}", allowsExtensions);
+                                }
+                                break;
+                            case "extension":
+                                allowsExtensionsList = field.attr("data-extensions");
+                                allowsExtensions = allowsExtensionsList.split(",");
+                                extension = value.substr((value.lastIndexOf('.') + 1));
+                                invalidExtension = true;
+                                for (var l in allowsExtensions) {
+                                    if (allowsExtensions[l] === extension) {
+                                        invalidExtension = false;
+                                        break;
+                                    }
+                                }
+                                if (invalidExtension) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages[extensionForm].replace("{{1}}", allowsExtensions);
+                                }
+                                break;
+                            case "checkbox":
+                                minimumRequired = field.attr("data-min-required") || 1;
+                                break;
+                            case "numeric":
+                                var isNan = Number.isNaN(Number(value));
+                                if (isNan) {
+                                    errorNeedToBeFixed++;
+                                    invalid = true;
+                                    message = config.messages.numeric;
+                                }
+                                break;
+                        }
+                        if (invalid) {
+                            break;
+                        }
+                    }
+                }
+                if (invalid) {
+                    $("#" + field.attr("id") + "error", form).html('(' + message + ')');
+                    if (firstError && setFocus) {
+                        firstError = false;
+                        field.closest(".panel-collapse").addClass("in").addClass("in").css("height", "auto");
+                        setTimeout(function () {
+                            field.focus();
+                            enableSubmit(form);
+                        }, 50);
+                    }
+                }
+            });
+            return errorNeedToBeFixed;
+        },
+        init: function (settings) {
+            init(settings);
+        },
+        init1: function (settings) {
+            init1(settings);
+        },
+        notify: function (status, message, callback) {
+            var type = {
+                error: "error",
+                danger: "error",
+                success: "success",
+                info: "info",
+                warning: "warning"
+            };
+            if (callback)
+                toastr.options.onclick = callback;
+            return toastr[type[status]](message);
+        },
+        checkAll: function (selected, controller, elementsGroup) {
+            var records = [];
+            var chks;
+            if (elementsGroup) {
+                chks = d.getElementsByName(elementsGroup);
+            } else {
+                chks = d.getElementsByName("multiple[]");
+            }
+            for (var i = 0; i < chks.length; i++) {
+                chks[i].checked = true;
+                records.push(chks[i].value);
+                $(chks[i]).parent("span").addClass("checked");
+                $(".record" + controller + selected + chks[i].value).addClass("selected");
+            }
+            if (records.length) {
+                config.loaded.state[controller].selected[selected] = records;
+                $("." + controller + selected + "selected").html(records.length);
+            } else {
+                config.loaded.state[controller].selected[selected] = [];
+                $("." + controller + selected + "selected").html(0);
+            }
+
+        },
+        unCheckAll: function (selected, controller, elementsGroup) {
+            config.loaded.state[controller].selected[selected] = [];
+            var chks;
+            if (elementsGroup) {
+                chks = d.getElementsByName(elementsGroup);
+            } else {
+                chks = d.getElementsByName("multiple[]");
+            }
+            for (var i = 0; i < chks.length; i++) {
+                chks[i].checked = false;
+                $(chks[i]).parent("span").removeClass("checked");
+                $(".record" + controller + selected + chks[i].value).removeClass("selected");
+            }
+            $("." + controller + selected + "selected").html(0);
+        },
+        done: function (element, id) {
+            if ($(element).parent("li").hasClass("needReview")) {
+                var notifications = $("#notificationsAlert");
+                var pending = parseInt($(".pendingCount", notifications).html());
+                pending = (isNaN(pending) ? 0 : pending);
+                pending--;
+                if (pending > 0) {
+                    $(".pendingCount", notifications).html(pending);
+                    $(".pending", notifications).html('<span class="bold">' + pending + ' pending</span>' + ' notification' + ((pending > 1) ? 's' : ''));
+                } else {
+                    $(".pendingCount", notifications).html('');
+                    $(".pending", notifications).html('<span class="bold">&nbsp;');
+                }
+                $(element).parent("li").removeClass("needReview");
+            }
+            return true;
+        },
+        updateStatus: function (element, url) {
+            $(element).bootstrapSwitch("disabled", true);
+            $.ajax({
+                url: config.baseUrl + url,
+                success: function (response) {
+                    for (var statusIndex in response.status) {
+                        Application.notifyWithCallback(response.status[statusIndex][0], response.status[statusIndex][1]);
+                    }
+                    $("." + $(element).attr("id") + "UpdatedAt").html(response.data.updatedAt);
+                    $(element).bootstrapSwitch("disabled", false);
+                }
+            });
+        },
+        authCallback: function (url, authDescription, code, options) {
+            var left = (screen.width / 2) - (options.width / 2);
+            var top = (screen.height / 2) - (options.height / 2);
+            config.auth.window[code] = open(url, "authCallback", 'toolbar=no, location=no, directories=no, status=no, menubar=no, copyhistory=no, width=645, height=645, top=0, left=0');
+            config.auth.activity[code] = Application.startActivity(authDescription);
+            config.auth.exists[code] = setInterval(function () {
+                if (config.auth.window[code].closed) {
+                    try {
+                        clearInterval(config.auth.exists[code]);
+                        toastr.clear(config.auth.activity[code]);
+                        delete (config.auth.window[code]);
+                        delete (config.auth.exists[code]);
+                        delete (config.auth.activity[code]);
+                    } catch (err) {
+                    } finally {
+                        if (typeof options.feedId == 'undefined') {
+                            var urlArray = config.current.split('/');
+                            var url = urlArray[(urlArray.length - 1)];
+                            Application.wall.sync.refreshWall(url, 'wall');
+                        } else {
+                            var name = 'errorMessage';
+                            var r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
+                            var error = r ? r[1] : null;
+                            if (error != null) {
+                                toastr['error'](decodeURIComponent(error).replace(/\+/g, ' '));
+                                Application.wall.sync.refreshWall(url, 'wall');
+                            } else {
+                                if (options.from == 'init') {
+                                    var network = $('#initheader').text();
+                                    network = network.replace(/selected/g, '');
+                                    $(".displayErrorpage").find('.loginHead > h2').html(network);
+                                    var name1 = 'successMessage';
+                                    var r1 = document.cookie.match("\\b" + name1 + "=([^;]*)\\b");
+                                    var success = r1 ? r1[1] : null;
+                                    var name = 'errorMessage';
+                                    var r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
+                                    var error = r ? r[1] : 'Sorry! Please complete the authorization process to create feed using ' + network;
+                                    if (success != null) {
+                                        $('.displayErrorpage').hide();
+                                        $('.sourceSection').hide();
+                                        $(".displywallpage").show();
+                                    } else {
+                                        $('.sourceSection').hide();
+                                        $('.displayErrorpage').show();
+                                        $('.actualError').html(decodeURIComponent(error).replace(/\+/g, ' '));
+                                        Application.wall.sync.deleteWallData(options.wallId);
+                                    }
+                                } else {
+                                    Application.wall.sync.getInstantPosts(options.feedId, options.wallId, options.moderation, options.totalFeeds, options.from);
+                                }
+                            }
+                        }
+                    }
+                }
+            }, 1000);
+        },
+        authCallbackConnected: function (url, authDescription, code, options) {
+            var left = (screen.width / 2) - (options.width / 2);
+            var top = (screen.height / 2) - (options.height / 2);
+            config.auth.window[code] = open(url, "authCallback", 'toolbar=no, location=no, directories=no, status=no, menubar=no, copyhistory=no, width=645, height=645, top=0, left=0');
+            config.auth.activity[code] = Application.startActivity(authDescription);
+            config.auth.exists[code] = setInterval(function () {
+                if (config.auth.window[code].closed) {
+                    try {
+                        clearInterval(config.auth.exists[code]);
+                        toastr.clear(config.auth.activity[code]);
+                        var name = 'successMessage';
+                        var r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
+                        var success = r ? r[1] : null;
+
+                        if (success != null) {
+                            success = success.split('+').join(' ');
+                            Application.wall.sync.refreshConnected(options.owner);
+                            toastr['success'](success);
+                        }
+                        var ename = 'errorMessage';
+                        var er = document.cookie.match("\\b" + ename + "=([^;]*)\\b");
+                        var error = er ? er[1] : null;
+                        if (error != null) {
+                            error = error.split('+').join(' ');
+                            toastr['error'](error);
+                        }
+                        delete (config.auth.window[code]);
+                        delete (config.auth.exists[code]);
+                        delete (config.auth.activity[code]);
+                    } catch (err) {
+                    }
+                    Application.wall.sync.refreshConnected(options.owner);
+                }
+
+            }, 1000);
+        },
+        slackreauth: function (wallId, link_state, feedId) {
+            var slackWindow = window.open('https://slack.com/oauth/authorize?client_id=1312134860787.1326480983426&scope=channels:history,channels:read,users.profile:read,users:read&state=' + link_state + '&redirect_uri=https://app.tagembed.com/feeds/authCallback_slack/', 'slackWindow', 'width=527, height=582');
+            var closeSlack = setInterval(function () {
+                if (slackWindow.closed) {
+                    clearInterval(closeSlack);
+                    $.ajax({
+                        type: "POST",
+                        url: 'feeds/slackreAuth',
+                        data: {'feedId': feedId, 'wallId': wallId},
+                        success: function (response) {
+                            var name1 = 'successMessage';
+                            var r1 = document.cookie.match("\\b" + name1 + "=([^;]*)\\b");
+                            var success = r1 ? r1[1] : null;
+                            var name = 'errorMessage';
+                            var r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
+                            var error = r ? r[1] : 'Sorry! Please complete the authorization process to connect netowrk';
+                            if (success != null) {
+                                swal({title: "Congratulations", text: decodeURIComponent(success).replace(/\+/g, ' '), type: "success", confirmButtonColor: '#DD6B55', icon: "success", button: "Ok", });
+                                location.reload(true);
+                            } else {
+                                swal({
+                                    title: "Error", text: decodeURIComponent(error).replace(/\+/g, ' '), type: "warning", confirmButtonColor: '#DD6B55', icon: "danger", button: "Ok",
+                                });
+                            }
+                        }
+                    });
+                }
+            }, 1000);
+        },
+        startActivity: function (message, title, canClose) {
+            return toastr.activity(message, title, {
+                onclick: function () {
+                    return false;
+                },
+                timeOut: "50000000",
+                hover: true,
+                showEasing: "swing",
+                hideEasing: "linear",
+                showMethod: "fadeIn",
+                hideMethod: "fadeOut",
+                closeButton: !!canClose,
+                showDuration: "1000",
+                hideDuration: "1000",
+                positionClass: "toast-bottom-right",
+                extendedTimeOut: "50000000"
+            });
+        },
+        /*switchTheme: function () {
+         $('.themeModal').find('.applybtn').html('<i class="fa fa-spinner fa-spin p-0" aria-hidden="true"></i> Apply Theme');
+         $('#wallthemeType').val($('#wallthemeTypePre').val());
+         $('#saveThisTheme').click();
+         },*/
+        customUrl: function (title) {
+            return title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+        },
+        loadFont: function (font) {
+            WebFont.load({
+                google: {
+                    families: [font]
+                }
+            });
+        },
+        wall: {
+            sync: {
+                getInstantPosts: function (feed, wallId, moderation, totalFeed, from) {
+                    $('#wallwallLoadingImage').show();
+                    var controller = config.wall.controller;
+                    $('body').find('.modal-scrollable').hide();
+                    $.ajax({
+                        url: "feeds/fetchNow/" + feed + "/",
+                        cache: false,
+                        type: 'POST',
+                        dataType: "json",
+                        success: function (response) {
+                            $('.firstAuthDiv').hide();
+                            $('.sourceSection').hide();
+                            $(".displywallpage").show();
+                            $(".displayErrorpage").hide();
+                            if (controller != '') {
+                                if (moderation == 1 && totalFeed == 1) {
+                                    window.location = config.baseUrl + 'moderate/index/' + config.wall.more.url;
+                                } else {
+                                    Application.wall.sync.refreshWall(config.wall.more.url);
+                                }
+                            }
+                            $('#authCheckclick').trigger('click');
+                        },
+                        error: function (e) {
+                            if (from == 'init') {
+                                var network = $('#initheader').text();
+                                network = network.replace(/selected/g, '');
+                                $(".displayErrorpage").find('.loginHead > h2').html(network);
+                                var name = 'errorMessage';
+                                var r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
+                                var error = r ? r[1] : 'Sorry! Please complete the authorization process to create feed using ' + network;
+                                $('.actualError').html(decodeURIComponent(error).replace(/\+/g, ' '));
+                                Application.wall.sync.deleteWallData(wallId);
+                            }
+                            $('.sourceSection').hide();
+                            $(".displayErrorpage").show();
+                            if (controller != '') {
+                                $('#' + controller + 'wallLoadingImage').hide();
+                            }
+                            $('#wallwallLoadingImage').hide();
+                        },
+                        complete: function (e) { }
+                    });
+                },
+                deleteWallData: function (wall) {
+                    $.ajax({
+                        url: config.baseUrl + "wall/delete/" + wall + "/init",
+                        cache: false,
+                        dataType: "json",
+                        timeout: (1000 * 60 * 7),
+                        success: function (response) { },
+                        error: function () { }
+                    });
+                },
+                authFeed: function (feedId, status) {
+                    $.ajax({
+                        url: config.baseUrl + "feeds/authorizeFeed/" + feedId + '/' + status,
+                        cache: false,
+                        dataType: "json",
+                        timeout: (1000 * 60 * 7),
+                        success: function (response) {
+                            if (status == 1) {
+                                toastr['success']("Feed successfully authorized.");
+                            } else {
+                                toastr['error']("Feed successfully unauthorized.");
+                            }
+                        },
+                        error: function () {
+                            toastr['error']("Please try again");
+                        }
+                    });
+                },
+                refreshWall: function (url, controller, data) {
+                    if (typeof config.wall.more.url !== 'undefined') {
+                        $.ajax({
+                            type: "GET",
+                            url: 'wall/get/' + config.wall.more.url + '/editor/true',
+                            dataType: 'json',
+                            success: function (response) {
+                                $('.wall-editor').html('');
+                                $(response.content).appendTo('.wall-editor');
+                                $('.loader-overlay').hide();
+                            }
+                        });
+                    } else {
+                        $('.more_modal').hide();
+                        var dataPost;
+                        if (typeof data !== undefined) {
+                            dataPost = data;
+                        }
+                        if (typeof controller == 'undefined') {
+                            $('#wallwallLoadingImage').show();
+                            $('#preloader-background').hide();
+                            $('#preloader-overlay').fadeOut(500);
+                            var iframeElem = $('.iframeWrapp')[0];
+                            if (typeof iframeElem !== 'undefined') {
+                                iframeElem.src = iframeElem.src;
+                            }
+                            $('.iframeWrapp').on("load", function () {
+                                $('#preloader-background').hide();
+                                $('#preloader-overlay').fadeOut(500);
+                            });
+                            return;
+                        }
+                        $('#' + controller + 'innerposts').html(' ');
+                        $('#' + controller + 'wallLoadingImage').show();
+                        if (config.wall.refreshWallXhr && config.wall.refreshWallXhr.state() !== 'resolved') {
+                            config.wall.refreshWallXhr.abort();
+                        }
+                        config.wall.refreshWallXhr = $.ajax({
+                            url: url,
+                            type: 'POST',
+                            data: dataPost,
+                            dataType: "json",
+                            success: function (response) {
+                                $('#' + controller + 'wallLoadingImage').hide();
+                                var posts = $(response.content);
+                                if (posts.length > 0) {
+                                    $('#' + controller + 'innerposts').html(response.content);
+                                    if (response.javascript) {
+                                        var responseJs = response.javascript;
+                                        for (var i = 0; i < responseJs.length; i++) {
+                                            eval(responseJs[i]);
+                                        }
+                                    }
+                                    initHandlers();
+                                }
+                                config.wall.refreshWallXhr = null;
+                            },
+                            error: function (e) {
+                                $('#' + controller + 'wallLoadingImage').hide();
+                                config.wall.refreshWallXhr = null;
+                            }
+                        });
+                    }
+                },
+                deleteFeed: function (wallId, feedId) {
+                    /*var socket = io.connect('https://node.tagembed.com:8443');
+                     socket.emit('deleteFeed', feedId);*/
+                },
+                refreshConnected: function (owner) {
+                    $.ajax({
+                        url: "feeds/getConnectedAccount/" + owner,
+                        cache: false,
+                        type: 'GET',
+                        dataType: "json",
+                        success: function (response) {
+                            $('.connectedAccounts').html(response.content);
+                            App.initAjax();
+                            initHandlers();
+                        },
+                        error: function (e) {
+                        }
+                    });
+                },
+                /* Remove Unused Function (Without Reloading )
+                 refreshPersonalize: function (wall, controller) {
+                 alert();
+                 $.ajax({
+                 url: controller + "/getPersonalize/" + wall + "/",
+                 cache: false,
+                 type: 'GET',
+                 dataType: "json",
+                 success: function (response) {
+                 $('#personalizeOption').find('.modal-body').html(response.content);
+                 App.initAjax();
+                 initHandlers();
+                 },
+                 error: function (e) {
+
+                 }
+                 });
+                 },
+                 */
+                refreshTheme: function (wall, controller) {
+                    $.ajax({
+                        url: controller + "/getThemes/" + wall + "/",
+                        cache: false,
+                        type: 'GET',
+                        dataType: "JSON",
+                        success: function (response) {
+                            $('#themeRefreshSection').html(response.content);
+                            App.initAjax();
+                            initHandlers();
+                        },
+                        error: function (e) {
+                        }
+                    });
+                },
+                refreshLoader: function (wall, controller) {
+                    $.ajax({
+                        url: controller + "/getLoader/" + wall + "/",
+                        cache: false,
+                        type: 'GET',
+                        dataType: "json",
+                        success: function (response) {
+                            $('#loaderOption').find('.modal-body').html(response.content);
+                            App.initAjax();
+                            initHandlers();
+                        },
+                        error: function (e) {
+                        }
+                    });
+                },
+                refreshWallLoader: function (wall) {
+                    $.ajax({
+                        url: "e/loader/" + wall,
+                        cache: false,
+                        type: 'GET',
+                        dataType: "json",
+                        success: function (response) {
+                            $('#wallwallLoadingImage').html(response.content);
+                            App.initAjax();
+                            initHandlers();
+                        },
+                        error: function (e) {
+                        }
+                    });
+                },
+                refreshFilter: function (wall, controller) {
+                    $.ajax({
+                        url: controller + "/getFilter/" + wall + "/",
+                        cache: false,
+                        type: 'GET',
+                        dataType: "json",
+                        success: function (response) {
+                            $('#filterOption').find('.modal-body').html(response.content);
+                            App.initAjax();
+                            initHandlers();
+                        },
+                        error: function (e) {
+                        }
+                    });
+                },
+                refreshAfetrDel: function (wall, controller, cl) {
+                    var indexA = "/index/";
+                    if (controller == "post") {
+                        indexA = "/create/";
+                    }
+                    $.ajax({
+                        url: controller + indexA + wall + "/",
+                        cache: false,
+                        type: 'POST',
+                        data: {
+                            'wallId': wall
+                        },
+                        dataType: "json",
+                        success: function (response) {
+                            $('.' + cl).removeClass('row');
+                            $('.' + cl).html(response.content);
+                            if (controller == "post") {
+                                $('.' + cl).find('.commanEmW').show();
+                                $('.' + cl).find('#postaddCustomPost').removeClass('active');
+                                $('.' + cl).find('.nav-tabs').hide();
+                            }
+                            App.initAjax();
+                            initHandlers();
+                        },
+                        error: function (e) {
+                        }
+                    });
+                },
+                refreshDisplay: function (wall, controller) {
+                    $.ajax({
+                        url: controller + "/refreshDisplay/" + wall + "/",
+                        cache: false,
+                        type: 'GET',
+                        dataType: "json",
+                        success: function (response) {
+                            $('.displaySectionWall').html('');
+                            $('.displaySectionWall').html(response.content);
+                            App.initAjax();
+                            initHandlers();
+                        },
+                        error: function (e) {
+                        }
+                    });
+                },
+                scrollElement: function (duration, dir) {
+                    if (typeof dir === 'undefined') {
+                        var dir = 'top';
+                    }
+                    var scrollPosition = config.wall.top;
+                    var element = config.wall.container.get(0);
+                    var style = element.style;
+                    if (dir == 'top') {
+                        style.webkitTransform =
+                                style.MozTransform =
+                                style.msTransform =
+                                style.OTransform =
+                                style.Transform = 'translate3d(0, ' + -scrollPosition + 'px, 0)';
+                    } else {
+                        style.webkitTransform =
+                                style.MozTransform =
+                                style.msTransform =
+                                style.OTransform =
+                                style.Transform = 'translate3d(' + -scrollPosition + 'px, 0, 0)';
+                    }
+                },
+            },
+            hideModal: function () {
+                if (config.parentWindow) {
+                    var obj = {
+                        type: 'closePopUp'
+                    }
+                    config.parentWindow.source.postMessage(obj, config.parentWindow.origin);
+                }
+                return;
+            },
+            setHeight: function () {
+                var windowHeight = $(w).height();
+                var tickerHeight = $('.headerTicker').height();
+                var headerHeight = $('#wBannerImage').height();
+                $('.themeSlidShows').css('height', windowHeight - (headerHeight + tickerHeight + 40));
+                $('.themeSlidShows.classicSlidShow').css('height', windowHeight - (headerHeight + tickerHeight + 100));
+                $('.themeSlidShows.zoomSlidShow').css('height', windowHeight - (headerHeight + tickerHeight));
+
+            },
+            setWidth: function () {
+                $('.postItem.item').css({'min-width': 'auto'});
+                if (config.wall.gridSizerWidthThemes === false) {
+                    return;
+                }
+                var innerW = $('.postItem.item').innerWidth();
+                var mW = $('.postItem.item').width();
+                var postPadding = (innerW - mW) / 2;
+                if (config.wall.gridSizerWidth == 0) {
+                    config.wall.gridSizerWidth = $('.grid-sizer').width();
+                }
+                var containerWidth = config.wall.container.width();
+                if ($(w).width() > 767) {
+                    var elemCount = Math.floor(containerWidth / config.wall.more.minimumPostWidth);
+                    var newWidth = ((containerWidth % config.wall.more.minimumPostWidth) / elemCount) + config.wall.more.minimumPostWidth;
+                    var postPaddingLeft = 0;
+                    var postPaddingRight = 0;
+                    if ($('.postItem.item').css('padding-left')) {
+                        postPaddingLeft = $('.postItem.item').css('padding-left').slice(0, -2);
+                    }
+                    if ($('.postItem.item').css('padding-right')) {
+                        postPaddingRight = $('.postItem.item').css('padding-right').slice(0, -2);
+                    }
+                    var postPadding = +postPaddingLeft + +postPaddingRight;
+                    $('.postItem.item').innerWidth(newWidth);
+                    $('.grid-sizer').innerWidth(newWidth);
+                    $('.postItem.item[data-highlight="1"]').innerWidth((newWidth * 2));
+                    if (config.wall.more.theme == 4) {
+                        $('.postItem.item').height((newWidth) - postPadding);
+                        $('.postItem.item[data-highlight="1"]').height((newWidth * 2));
+                    }
+                } else {
+                    $('.grid-sizer').css({'min-width': 0});
+                    $('.grid-sizer').css({'width': ''});
+                    $('.postItem.item').css({'min-width': 0});
+                    $('.postItem.item').css({'width': ''});
+                    var postItemHeight = $('.postItem.item').width();
+                    if (config.wall.more.theme == 4) {
+                        $('.postItem.item').height(postItemHeight);
+                    }
+                }
+                if (config.wall.more.themeType == 2) {
+                    config.wall.documentHeight = ($(w).height() - $('#' + config.wall.controller + 'BannerImage').height() - $('#' + config.wall.controller + 'tickerTop').height());
+
+                    config.wall.parent.css({
+                        height: config.wall.documentHeight,
+                        overflow: "hidden"
+                    });
+                }
+                var iso = config.wall.container.data('isotope');
+                if (iso) {
+                    config.wall.container.isotope('layout');
+                }
+            },
+            init: function (controller, action, container, more, popUpPosts, announcements) {
+                $('body').removeClass('gridThemeBody');
+                config.wall.more = more;
+                config.wall.more.timeInMs = Date.now();
+                config.wall.controller = controller;
+                config.wall.action = action;
+                config.wall.container = $(container);
+                config.wall.parent = config.wall.container.parent();
+                config.wall.popUpPosts = popUpPosts;
+                config.wall.gridSizerWidthThemes = false;
+                $(window).off('resize', Application.wall.setHeight);
+                $(window).off('resize', Application.wall.setFallingColumnWidth);
+                $(window).off('resize', Application.wall.setWidth);
+
+                try {
+                    announcements = announcements.trim();
+                } catch (err) {
+
+                }
+                if (config.wall.more.themeType == 1 && config.wall.more.theme != 16 && config.wall.more.theme != 47 && (config.wall.more.loadMoreStatus == 1 || config.wall.more.autoLoad == 1)) {
+                    if (config.wall.container.find('.item').length == config.wall.more.numberOfPosts)
+                        $('#wMorePosts').show();
+                    else if (config.wall.container.attr('data-nopost') != 1) {
+                        $('#wNoMorePosts').show();
+                    }
+                } else {
+                    $('#wMorePosts').remove();
+                    $('#wNoMorePosts').remove();
+                }
+                Application.wall.addCustomPost(config.wall.controller);
+                var iso = config.wall.container.data('isotope');
+                if (iso) {
+                    config.wall.container.isotope('destroy');
+                }
+                try {
+                    clearInterval(config.wall.interval);
+
+                } catch (err) {
+                }
+                switch (config.wall.more.theme) {
+                    case 4:
+                        Application.wall.theme4();
+                        $(window).resize(function () {
+                            Application.wall.theme4();
+                        });
+                        setTimeout(function () {
+                            ApplicationContentLimit.theme4();
+                        }, 1000);
+                    case 1:
+                    case 3:
+                    case 5:
+                    case 19:
+                    case 20:
+                    case 26:
+                    case 28:
+                    case 46:
+                    case 38:
+                        Application.wall.gridInitialize();
+                        break;
+                    case 48:
+                        Application.wall.gridInitializeNew();
+                        break;
+                    case 21:
+                    case 35:
+                    case 37:
+                        Application.wall.slideInitialize();
+                        break;
+                    case 16:
+                        Application.wall.owlInitialize();
+                        break;
+                    case 40:
+                        setTimeout(function () {
+                            config.wall.gridSizerWidthThemes = true;
+                            config.wall.container.find('ul.fallingColumn').find('li').find('.post.item:first-child').addClass('current');
+                            var runNow = Application.wall.setFallingColumnWidth();
+                            $(window).resize(Application.wall.setFallingColumnWidth);
+                            if (runNow) {
+                                Application.wall.setFallingColumn();
+                            }
+                        }, 100);
+                        break;
+                    case 44:
+                        ApplicationTheme44.init();
+                        break;
+                    case 36:
+                        Application.wall.sync.theme36();
+                        break;
+                    case 29:
+                        Application.wall.sync.theme29();
+                        $('body').addClass('gridThemeBody');
+                        break;
+                    default:
+                        break;
+                }
+                initSetAuthor();
+                var tickerBtmHeight = $('.headerTicker.tickerBottom').height();
+                var bnrBtmHeight = $('#wBannerImage.bannerBottom').height() + tickerBtmHeight;
+                $('#wBannerImage.bannerBottom').css('margin-bottom', tickerBtmHeight);
+                $('.loadMoreWrapper .loadMoreBtn').css('margin-bottom', bnrBtmHeight + 20 + 'px');
+                try {
+                    var themes = [4, 16, 36, 21, 35, 37];
+                    if (!themes.includes(config.wall.more.theme) && walls.indexOf(parseInt(config.wall.more.url)) == '-1')
+                        Application.wall.sync.applyEmoticon(config.wall.container);
+                } catch (err) {
+                }
+                if (announcements) {
+                    Application.wall.sync.announcements(announcements);
+                }
+                $('#wloading').remove();
+            },
+            addCustomPost: function (controller) {
+                var theme = parseInt(config.wall.more.theme);
+                if (theme == 16 || theme == 3 || theme == 4 || theme == 5 || theme == 19 || theme == 20 || theme == 26 || theme == 28 || theme == 46 || theme == 48 || theme == 38 || theme == 35 || theme == 37 || theme == 21 || theme == 40 || theme == 29 || theme == 44 || theme == 47) {
+                } else {
+                    return;
+                }
+                var i = 1;
+                var vars = new Array();
+                $('#' + controller + 'Posts').find('.feedId0.manualPost').remove();
+                $('#' + controller + 'CustomPosts').find('.feedId0').attr('data-startrepeating', 0);
+                if (theme == 44) {
+                    $('#' + controller + 'Posts').find('.postImgDiv').each(function () {
+                        var post = $(this);
+                        $('#' + controller + 'CustomPosts').find('.postImgDiv').each(function () {
+                            var customPost = $(this);
+                            var startRepeating = customPost.attr('data-startrepeating');
+                            if (i == 1) {
+                                var clone = customPost.clone();
+                                var iso = config.wall.container.data('isotope');
+                                if (iso) {
+                                    config.wall.container.isotope().append(clone).isotope('appended', clone).isotope("layout");
+                                } else {
+                                    post.after(clone);
+                                }
+                                customPost.remove();
+                            }
+                        })
+                        i++;
+                    });
+                }
+                $('#' + controller + 'Posts').find('.postItem.item').each(function () {
+                    var post = $(this);
+                    var j = 1;
+                    $('#' + controller + 'CustomPosts').find('.postItem.item').each(function () {
+                        var customPost = $(this);
+                        var startRepeating = customPost.attr('data-startrepeating');
+                        if (customPost.attr('data-after') == 0 && customPost.attr('data-every') == 0 && i == 1) {
+                            var preCreated = post.attr('data-created');
+                            var nextCreated = post.next().attr('data-created');
+                            var current = (parseInt(preCreated) + parseInt(nextCreated)) / 2;
+                            if (isNaN(current)) {
+                                current = parseInt(preCreated) - (parseInt(preCreated) / 2);
+                            }
+                            current = Math.round(current);
+                            var theDate = new Date(current * 1000);
+                            var timeBefore = Application.wall.getTimeDiff(theDate);
+                            customPost.find('.timePost').attr('data-livestamp', current);
+                            customPost.find('.timePost').text(timeBefore);
+
+                            customPost.attr('data-created', current);
+                            var clone = customPost.clone();
+                            if (clone.hasClass("myCusomPost")) {
+                                clone.removeClass("active");
+                            }
+                            var iso = config.wall.container.data('isotope');
+                            if (iso) {
+                                config.wall.container.isotope().append(clone).isotope('appended', clone).isotope("layout");
+                            } else {
+                                post.after(clone);
+                            }
+                            customPost.remove();
+                        } else if (customPost.attr('data-every') == 0) {
+                            var preCreated = post.attr('data-created');
+                            var nextCreated = post.next().attr('data-created');
+                            var current = (parseInt(preCreated) + parseInt(nextCreated)) / 2;
+                            if (isNaN(current)) {
+                                current = parseInt(preCreated) - (parseInt(preCreated) / 2);
+                            }
+                            current = Math.round(current);
+                            var theDate = new Date(current * 1000);
+                            var timeBefore = Application.wall.getTimeDiff(theDate);
+                            customPost.find('.timePost').attr('data-livestamp', current);
+                            customPost.find('.timePost').text(timeBefore);
+                            customPost.attr('data-created', current);
+                            var clone = customPost.clone();
+                            if (clone.hasClass("myCusomPost")) {
+                                clone.removeClass("active");
+                            }
+                            var iso = config.wall.container.data('isotope');
+                            if (iso) {
+                                config.wall.container.isotope().append(clone).isotope('appended', clone).isotope("layout");
+                            } else {
+                                post.after(clone);
+                            }
+                            customPost.remove();
+                        } else if (customPost.attr('data-after') <= i) {
+                            if (startRepeating == 0) {
+                                var preCreated = post.attr('data-created');
+                                var nextCreated = post.next().attr('data-created');
+                                var current = (parseInt(preCreated) + parseInt(nextCreated)) / 2;
+                                if (isNaN(current)) {
+                                    current = parseInt(preCreated) - (parseInt(preCreated) / 2);
+                                }
+                                current = Math.round(current);
+                                var theDate = new Date(current * 1000);
+                                var timeBefore = Application.wall.getTimeDiff(theDate);
+                                customPost.find('.timePost').attr('data-livestamp', current);
+                                customPost.find('.timePost').text(timeBefore);
+                                customPost.attr('data-created', current);
+                                customPost.addClass('manualPost');
+                                var clone = customPost.clone();
+                                if (clone.hasClass("myCusomPost")) {
+                                    clone.removeClass("active");
+                                }
+                                var iso = config.wall.container.data('isotope');
+                                if (iso) {
+                                    config.wall.container.isotope().append(clone).isotope('appended', clone).isotope("layout");
+                                } else {
+                                    post.after(clone);
+                                }
+                                customPost.removeClass('manualPost');
+                                customPost.attr('data-startrepeating', 1);
+                                var ind = (parseInt(i) + 1) + '_' + j;
+                                vars['every' + ind] = (i + 1 + parseInt(customPost.data('every') + 1) + '_' + j);
+
+                            } else if (startRepeating == 1 && vars['every' + (i - parseInt($(this).data('every')) - 1) + '_' + j] == i + '_' + j) {
+                                var preCreated = post.data('created');
+                                if (post.next().length) {
+                                    var nextCreated = post.next().data('created');
+                                } else {
+                                    var nextCreatedDiff = parseInt(post.prev().data('created')) - parseInt(preCreated);
+                                    var nextCreated = preCreated + nextCreatedDiff;
+                                }
+                                var current = (parseInt(preCreated) + parseInt(nextCreated)) / 2;
+                                if (isNaN(current)) {
+                                    current = parseInt(preCreated) - (parseInt(preCreated) / 2);
+                                }
+                                current = Math.round(current);
+                                var theDate = new Date(current * 1000);
+                                var timeBefore = Application.wall.getTimeDiff(theDate);
+                                customPost.find('.timePost').attr('data-livestamp', current);
+                                customPost.find('.timePost').text(timeBefore);
+                                customPost.attr('data-order', i + 1);
+                                customPost.attr('data-created', current);
+                                customPost.addClass('manualPost');
+                                var clone = customPost.clone();
+                                if (clone.hasClass("myCusomPost")) {
+                                    clone.removeClass("active");
+                                }
+                                var iso = config.wall.container.data('isotope');
+                                if (iso) {
+                                    config.wall.container.isotope().append(clone).isotope('appended', clone).isotope("layout");
+                                } else {
+                                    post.after(clone);
+                                }
+                                customPost.removeClass('manualPost');
+                                vars['every' + (parseInt(i) + 1) + '_' + j] = (i + 1 + parseInt(customPost.data('every') + 1) + '_' + j);
+                            }
+                        }
+                        j++;
+                    })
+                    i++;
+                });
+                if (config.wall.more.url == 13745 || config.wall.more.url == 13296 || config.wall.more.url == 14099) {
+                    $('#' + controller + 'CustomPosts').find('.postItem.item').each(function () {
+                        var customPost = $(this);
+                        var clone = customPost.clone();
+                        var iso = config.wall.container.data('isotope');
+                        if (iso) {
+                            config.wall.container.isotope().append(clone).isotope('appended', clone).isotope("layout");
+                        } else {
+                            $('#' + controller + 'Posts').append(clone);
+                        }
+                    })
+                }
+            },
+            gridInitialize: function () {
+                config.wall.gridSizerWidthThemes = true;
+                Application.wall.setWidth();
+                if (config.wall.more.blurEffect == 1 && config.wall.more.themeType == 1) {
+                    setTimeout(function () {
+                        if (theme == 20 || theme == 19 || theme == 5 || theme == 3 || theme == 4) {
+                            Application.wall.setWidth();
+                            $(".image").each(function () {
+                                var random = 0 + Math.random() * 1;
+                                random = random.toFixed(1);
+                                $(this).css('filter', 'blur(0px)');
+                                $(this).css('transform', 'translateZ(0px) scale3d(1, 1, 1)');
+                                $(this).css('transition', 'all 0s ease-in-out ' + random + 's');
+                            });
+                        }
+
+                    }, 1000);
+                } else {
+                    setTimeout(function () {
+                        Application.wall.setWidth();
+                    }, 5000);
+                }
+                $(window).resize(Application.wall.setWidth);
+                var sorting = ['pinned', 'created', 'order'];
+                if (config.wall.more.randomizePost == 1) {
+                    sorting = 'original-order';
+                }
+                config.gridOptions = {
+                    itemSelector: ".item",
+                    transitionDuration: config.wall.more.transitionDuration,
+                    masonry: {
+                        columnWidth: '.grid-sizer'
+                    },
+                    sortAscending: false,
+                    getSortData: {
+                        pinned: '[data-pin]',
+                        created: '[data-created]',
+                        order: '[data-order]'
+                    },
+                    sortBy: sorting,
+                };
+                var theme = parseInt(config.wall.more.theme);
+                if (theme == 20 || theme == 19 || theme == 5 || theme == 3 || theme == 4) {
+                    $('.postItem.item').hide();
+                    $('.postItem.item').not('.completeFadeIn').each(function () {
+                        $(this).fadeIn(1000).addClass('completeFadeIn');
+                    });
+                    $("img.initLazyLoad").not('.completeLazyLoad').each(function () {
+                        $(this).hide();
+                        $(this).attr('src', $(this).attr('data-original'));
+                        $(this).one("load", function () {
+                            $(this).fadeIn(1500);
+                            $(this).addClass('completeLazyLoad');
+                            config.wall.container.isotope('layout');
+                        });
+                        $(this).one("error", function () {
+                            $(this).attr('src', $(this).attr('data-src'));
+                        });
+
+                    });
+                    setTimeout(function () {
+                        $("img.initLazyLoad").not('.completeLazyLoad').each(function () {
+                            $(this).hide();
+                            $(this).attr('src', $(this).attr('data-original'));
+                            $(this).one("load", function () {
+                                $(this).fadeIn(1500);
+                                $(this).addClass('completeLazyLoad');
+                                config.wall.container.isotope('layout');
+                            });
+                            $(this).one("error", function () {
+                                $(this).attr('src', $(this).attr('data-src'));
+                            });
+
+                        });
+                    }, 3000);
+                }
+                config.wall.container.isotope(config.gridOptions);
+                config.wall.container.imagesLoaded().progress(function () {
+                    config.wall.container.isotope('layout');
+                }).always(function (instance) {
+                    $(config.wall.more.loadMore).show();
+                });
+                if (config.wall.more.themeType == 2) {
+                    config.wall.documentHeight = ($(w).height() - $('#' + config.wall.controller + 'BannerImage').height() - $('#' + config.wall.controller + 'tickerTop').height());
+                    var autoscrollspeed = 50;
+                    if (config.wall.more.scrollDelay)
+                        autoscrollspeed = config.wall.more.scrollDelay;
+
+                    config.wall.parent.css({
+                        height: config.wall.documentHeight,
+                        overflow: "hidden"
+                    });
+                    Application.wall.setWidth();
+                    config.wall.interval = setInterval(function () {
+                        config.wall.top += 1;
+                        if (config.wall.top > (config.wall.container.height() - config.wall.documentHeight - 500)) {
+                            config.wall.top = 0;
+                        }
+                        Application.wall.sync.scrollElement(autoscrollspeed);
+                    }, autoscrollspeed);
+                    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                    if (!isMobile) {
+                        if (config.wall.more.playFullVideo == 1 && config.wall.more.postFeatured == 1) {
+                            config.wall.intervalModal = setInterval(function () {
+                                if (config.wall.callZoomIt == 1) {
+                                    Application.wall.zoomIt();
+                                }
+                            }, 5000);
+                        } else if (config.wall.more.postFeatured == 1) {
+                            if (config.wall.more.url) {
+                                if (config.wall.more.url == 8861) {
+                                    config.wall.modalInterval = 11000;
+                                }
+                            }
+                            config.wall.intervalModal = setInterval(this.zoomIt, config.wall.modalInterval);
+                        }
+                    }
+                }
+            },
+        },
+        getCode: function (identifier, url, preview, type, theme, platforms) {
+            var srcParts = [];
+            var src = 'https://widget.tagembed.com/' + url;
+            srcParts.push(src);
+            /**
+             * Width
+             */
+            var options = [];
+            options.push('view');
+            /**
+             * Display Type
+             */
+            var displayType = ($('#' + identifier + 'displayType').val()) || 1;
+            options.push('type=' + displayType);
+            /**
+             * If display type is 3 then required (Number of posts per Page)
+             */
+            var numberOfPostsPerPage = ($('#' + identifier + 'numberOfPostsPerPage').val()) || 1;
+            options.push('offset=' + numberOfPostsPerPage);
+
+            srcParts.push(options.join('&'));
+            /**
+             * Width
+             */
+            var units = {
+                1: '%',
+                2: 'px'
+            };
+            var widthUnit = ($('#' + identifier + 'widthUnit').val()) || '%';
+            if (widthUnit != 1 && widthUnit != 2) {
+                widthUnit = 1
+            }
+            var width = ($('#' + identifier + 'width').val()) || 100;
+            /**
+             * Height
+             */
+            var heightUnit = ($('#' + identifier + 'heightUnit').val()) || '%';
+            if (heightUnit != 1 && heightUnit != 2) {
+                heightUnit = 1
+            }
+            var height = ($('#' + identifier + 'height').val()) || 100;
+            var field = $('#' + identifier + 'embedarea');
+            var fieldJs = $('#' + identifier + 'embedareaJs'); //JSCODE
+            var emailsharecode = $('#' + identifier + 'emailsharecode');
+            var margin49 = " ";
+            if (theme === undefined) {
+                theme = null;
+            }
+            if (type == 'embed' && platforms == 'otherBtn') {
+                field.val('<iframe src="https://widget.tagembed.com/' + url + '?view" style="' + margin49 + 'width:' + width + units[widthUnit] + ';height:' + height + units[heightUnit] + ';overflow: auto;" frameborder="0" allowtransparency="true"></iframe>');
+                emailsharecode.val('<iframe src="https://widget.tagembed.com/' + url + '?view" style="' + margin49 + 'width:' + width + units[widthUnit] + ';height:' + height + units[heightUnit] + ';overflow: auto;" frameborder="0" allowtransparency="true"></iframe>');
+            } else {
+                if (type == 'embed') {
+                    if (theme == 49) {
+                        margin49 = "margin:0 auto; ";
+                    }
+                    $('#' + identifier + 'webEmbedHtmlTextarea').show();
+                    $('#' + identifier + 'webEmbedHtmlTextareaJs').show();
+                    field.val('<div class="tagembed-container" style="' + margin49 + 'width:' + width + units[widthUnit] + ';height:' + height + units[heightUnit] + ';overflow: auto;"><div class="tagembed-socialwall" data-wall-id="' + url + '" view-url="https://widget.tagembed.com/' + url + '">  </div> <script src="//widget.tagembed.com/embed.min.js" type="text/javascript"></script></div>');
+                    emailsharecode.val('<div class="tagembed-container" style="' + margin49 + 'width:' + width + units[widthUnit] + ';height:' + height + units[heightUnit] + ';overflow: auto;"><div class="tagembed-socialwall" data-wall-id="' + url + '" view-url="https://widget.tagembed.com/' + url + '">  </div><script src="//widget.tagembed.com/embed.min.js" type="text/javascript"></script></div>');
+                    fieldJs.val('<div class="tagembed-container" style="' + margin49 + 'width:' + width + units[widthUnit] + ';height:' + height + units[heightUnit] + ';overflow: auto;"><div class="tagembed-socialwall" data-wall-id="' + url + '"></div> <script src="//widget.tagembed.com/embed.min.js" type="text/javascript"></script></div>');
+                    emailsharecode.val('<div class="tagembed-container" style="' + margin49 + 'width:' + width + units[widthUnit] + ';height:' + height + units[heightUnit] + ';overflow: auto;"><div class="tagembed-socialwall" data-wall-id="' + url + '"></div><script src="//widget.tagembed.com/embed.min.js" type="text/javascript"></script></div>');
+                } else if (type == 'iframe') {
+                    field.val('<div view-url="https://widget.tagembed.com/' + url + '?view" style="width:' + width + units[widthUnit] + ';height:' + height + units[heightUnit] + ';overflow: auto;-webkit-overflow-scrolling:touch;"><iframe src="' + srcParts.join('?') + '" width="' + width + units[widthUnit] + '" height="' + height + units[heightUnit] + '" frameborder="0" allowFullScreen webkitallowfullscreen mozallowfullscreen></iframe></div>');
+                    emailsharecode.val('<div view-url="https://widget.tagembed.com/' + url + '?view" style="width:' + width + units[widthUnit] + ';height:' + height + units[heightUnit] + ';overflow: auto;-webkit-overflow-scrolling:touch;"><iframe src="' + srcParts.join('?') + '" width="' + width + units[widthUnit] + '" height="' + height + units[heightUnit] + '" frameborder="0" allowFullScreen webkitallowfullscreen mozallowfullscreen></iframe></div>');
+                }
+            }
+            var fieldDOM = field[0];
+            fieldDOM.onfocus = function () {
+                fieldDOM.select();
+                fieldDOM.onmouseup = function () {
+                    fieldDOM.select();
+                    return false;
+                };
+            };
+            if (preview) {
+                var left = (screen.width / 2) - (800 / 2);
+                var top = (screen.height / 2) - (800 / 2);
+                open(srcParts.join('?'), "preview", 'toolbar=no, location=no, directories=no, status=no, menubar=no, xxxxxxxxxxxhistory=no, width=' + 800 + ', height=' + 800 + ', top=' + top + ', left=' + left);
+            }
+        }
+    };
+}(window, undefined);

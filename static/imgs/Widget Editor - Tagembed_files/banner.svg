@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="52" height="42" viewBox="0 0 52 42">
+  <defs>
+    <clipPath id="clip-path">
+      <rect id="Rectangle_400" data-name="Rectangle 400" width="52" height="14" rx="7" transform="translate(-0.058 0.2)" fill="#4179fc"/>
+    </clipPath>
+    <clipPath id="clip-Artboard_5">
+      <rect width="52" height="42"/>
+    </clipPath>
+  </defs>
+  <g id="Artboard_5" data-name="Artboard – 5" clip-path="url(#clip-Artboard_5)">
+    <g id="Group_766" data-name="Group 766">
+      <g id="Group_765" data-name="Group 765" transform="translate(0.058 -0.2)">
+        <rect id="Rectangle_398" data-name="Rectangle 398" width="52" height="14" rx="2" transform="translate(-0.058 0.2)" fill="#4179fc"/>
+        <rect id="Rectangle_399" data-name="Rectangle 399" width="52" height="26" rx="2" transform="translate(-0.058 16.2)" fill="#e2e8fc"/>
+        <g id="Mask_Group_57" data-name="Mask Group 57" transform="translate(0 0)" clip-path="url(#clip-path)">
+          <g id="Group_690" data-name="Group 690" transform="translate(-1.42 2.511)">
+            <path id="Path_675" data-name="Path 675" d="M2225.227,972.458s5.949-8.914,8.191-10.578,6.465,4.782,8.363,5.544,6.332-3.164,8.081-3.073,4.2,5.388,7.049,5.45,6.712-3.037,9.062-2.377,6.569,4.921,8.175,5.034S2225.227,972.458,2225.227,972.458Z" transform="translate(-2225.227 -960.446)" fill="none" stroke="#28e9fe" stroke-width="0.7"/>
+            <g id="Ellipse_157" data-name="Ellipse 157" transform="translate(43.362 0.689)" fill="none" stroke="#28e9fe" stroke-width="0.7">
+              <circle cx="2" cy="2" r="2" stroke="none"/>
+              <circle cx="2" cy="2" r="1.65" fill="none"/>
+            </g>
+            <path id="Path_676" data-name="Path 676" d="M2244,964.319s2.849-4.4,3.914-4.74,3.686,2.633,3.686,2.633" transform="translate(-2238.943 -956.973)" fill="none" stroke="#28e9fe" stroke-linecap="round" stroke-width="0.7"/>
+            <path id="Path_677" data-name="Path 677" d="M0,.655A6.4,6.4,0,0,1,2.173,0,7.676,7.676,0,0,1,4.2.655" transform="translate(38.222 7.647) rotate(7)" fill="none" stroke="#28e9fe" stroke-linecap="round" stroke-width="0.7"/>
+          </g>
+        </g>
+        <g id="Group_691" data-name="Group 691" transform="translate(4.742 21.642)">
+          <rect id="Rectangle_401" data-name="Rectangle 401" width="25" height="2" transform="translate(0.2 -1.442)" fill="#becefc"/>
+          <rect id="Rectangle_402" data-name="Rectangle 402" width="29" height="2" transform="translate(0.2 2.558)" fill="#becefc"/>
+          <rect id="Rectangle_403" data-name="Rectangle 403" width="34" height="2" transform="translate(0.2 6.558)" fill="#becefc"/>
+          <rect id="Rectangle_404" data-name="Rectangle 404" width="39" height="2" transform="translate(0.2 10.558)" fill="#becefc"/>
+          <rect id="Rectangle_405" data-name="Rectangle 405" width="42" height="2" transform="translate(0.2 14.558)" fill="#becefc"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

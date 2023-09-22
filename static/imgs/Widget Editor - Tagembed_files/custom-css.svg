@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="52" height="37" viewBox="0 0 52 37">
+                                        <defs>
+                                            <clipPath id="clip-Artboard_16">
+                                                <rect width="52" height="37" />
+                                            </clipPath>
+                                        </defs>
+                                        <g id="Artboard_16" data-name="Artboard – 16" clip-path="url(#clip-Artboard_16)">
+                                            <g id="Group_770" data-name="Group 770" transform="translate(-2101 -1506)">
+                                                <rect id="Rectangle_443" data-name="Rectangle 443" width="37" height="4" rx="1" transform="translate(2101 1506)" fill="#28e9fe" />
+                                                <rect id="Rectangle_444" data-name="Rectangle 444" width="52" height="30" rx="1" transform="translate(2101 1513)" fill="#e2e8fc" />
+                                                <rect id="Rectangle_445" data-name="Rectangle 445" width="4" height="4" rx="1" transform="translate(2142 1506)" fill="#becefc" />
+                                                <rect id="Rectangle_446" data-name="Rectangle 446" width="4" height="4" rx="1" transform="translate(2149 1506)" fill="#becefc" />
+                                                <g id="Group_738" data-name="Group 738" transform="translate(-1479.8 -833.381)">
+                                                    <path id="Path_715" data-name="Path 715" d="M315.453,226.935a1.5,1.5,0,0,0-2.118,2.118l2.756,2.756-2.756,2.756a1.5,1.5,0,0,0,2.128,2.118l3.811-3.811a1.506,1.506,0,0,0,0-2.118Z" transform="translate(3299.705 2129.34)" fill="#4179fc" />
+                                                    <path id="Path_716" data-name="Path 716" d="M135.164,226.935a1.506,1.506,0,0,0-2.118,0l-3.811,3.811a1.491,1.491,0,0,0-.435,1.064,1.508,1.508,0,0,0,.435,1.064l3.811,3.811a1.5,1.5,0,0,0,1.064.435,1.494,1.494,0,0,0,1.064-2.553l-2.756-2.756,2.756-2.756A1.5,1.5,0,0,0,135.164,226.935Z" transform="translate(3466 2129.34)" fill="#4179fc" />
+                                                    <path id="Path_717" data-name="Path 717" d="M223.7,201.17a1.5,1.5,0,0,0-1.915.9l-4.517,12.525a1.5,1.5,0,0,0,.9,1.915,1.542,1.542,0,0,0,.513.087,1.507,1.507,0,0,0,1.412-.986l4.517-12.525A1.505,1.505,0,0,0,223.7,201.17Z" transform="translate(3386.167 2152.3)" fill="#4179fc" />
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </svg>
