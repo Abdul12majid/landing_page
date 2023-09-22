@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-8!bo$05@gix&4@paabf04j8f)g%_2r1e!(ksl-*5)*g#e-w1c(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -56,7 +56,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'Ben.urls'
-#CSRF_TRUSTED_ORIGINS = ['']
+CSRF_TRUSTED_ORIGINS = ['landingpage-production-4115.up.railway.app']
 
 TEMPLATES = [
     {
